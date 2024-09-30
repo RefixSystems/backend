@@ -14684,6 +14684,30 @@ router.post("/clearUser/:phoneNumber", async (req, res) => {
       { "reviews.phoneNumber": phoneNumber },
       { $pull: { reviews: { phoneNumber } } }
     );
+    deleteResults.notificationCounts = await notificationCountModel.updateMany(
+      { type: "orderCount"},
+      { $pull: {details: {employeePhoneNumber: phoneNumber } }}
+    );
+    deleteResults.notificationCounts = await notificationCountModel.updateMany(
+      { type: "quoteCount"},
+      { $pull: {details: {employeePhoneNumber: phoneNumber } }}
+    );
+    deleteResults.notificationCounts = await notificationCountModel.updateMany(
+      { type: "userCount"},
+      { $pull: {details: {employeePhoneNumber: phoneNumber } }}
+    );
+    deleteResults.notificationCounts = await notificationCountModel.updateMany(
+      { type: "supportCount"},
+      { $pull: {details: {employeePhoneNumber: phoneNumber } }}
+    );
+    deleteResults.notificationCounts = await notificationCountModel.updateMany(
+      { type: "generalReviewCount"},
+      { $pull: {details: {employeePhoneNumber: phoneNumber } }}
+    );
+    deleteResults.notificationCounts = await notificationCountModel.updateMany(
+      { type: "productReviewCount"},
+      { $pull: {details: {employeePhoneNumber: phoneNumber } }}
+    );
 
     const notDeleted = Object.entries(deleteResults)
       .filter(([key, value]) => !value)
