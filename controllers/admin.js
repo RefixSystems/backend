@@ -161,7 +161,7 @@ cron.schedule("* * * * *", async (req, res) => {
         );
       }
     }
-    const now = moment().format("DD/MM/YYYY");
+    const now = moment().tz("Asia/Kolkata").format("DD/MM/YYYY");
     const pendingCoupons = await couponCodeModel.find({
       startDate: now,
       status: "Pending",
