@@ -13469,176 +13469,7 @@ router.delete(
   }
 );
 
-router.get("/verifyAccess1/:role", async (req, res) => {
-  const { role } = req.params;
-  try {
-    const validUser = await moduleAccessModel.findOne({ roleOfEmployee: role });
-
-    if (validUser) {
-      const validUserModules = validUser.modules.map((module) => ({
-        moduleName: module.moduleName,
-        read: module.read,
-      }));
-
-      const reviews = validUser.modules.find(
-        (module) => module.moduleName === "review" && module.read === true
-      );
-      const productReviews = validUser.modules.find(
-        (module) =>
-          module.moduleName === "reviews_products" && module.read === true
-      );
-
-      let review = false;
-      if (
-        (reviews && reviews.read) ||
-        (productReviews && productReviews.read)
-      ) {
-        review = true;
-      }
-
-      const issues = validUser.modules.find(
-        (module) => module.moduleName === "device" && module.read === true
-      );
-      const rentals = validUser.modules.find(
-        (module) =>
-          module.moduleName === "rental_laptop" && module.read === true
-      );
-      const refurbisheds = validUser.modules.find(
-        (module) =>
-          module.moduleName === "refurbished_laptop" && module.read === true
-      );
-
-      let subCategory = false;
-      if (
-        (issues && issues.read) ||
-        (rentals && rentals.read) ||
-        (refurbisheds && refurbisheds.read)
-      ) {
-        subCategory = true;
-      }
-
-      const general = validUser.modules.find(
-        (module) =>
-          module.moduleName === "general_settings" && module.read === true
-      );
-      const credentials = validUser.modules.find(
-        (module) =>
-          module.moduleName === "credentials_settings" && module.read === true
-      );
-      const gallery = validUser.modules.find(
-        (module) => module.moduleName === "gallery" && module.read === true
-      );
-      const mostBookedService = validUser.modules.find(
-        (module) =>
-          module.moduleName === "mostBookedService" && module.read === true
-      );
-
-      let settings = false;
-      if (
-        (general && general.read) ||
-        (credentials && credentials.read) ||
-        (mostBookedService && mostBookedService.read) ||
-        (gallery && gallery.read)
-      ) {
-        settings = true;
-      }
-
-      const employeeReports = validUser.modules.find(
-        (module) =>
-          module.moduleName === "employee_reports" && module.read === true
-      );
-      const orderReports = validUser.modules.find(
-        (module) =>
-          module.moduleName === "order_reports" && module.read === true
-      );
-      const userReports = validUser.modules.find(
-        (module) => module.moduleName === "user_reports" && module.read === true
-      );
-      const rentalProducts = validUser.modules.find(
-        (module) =>
-          module.moduleName === "rental_reports" && module.read === true
-      );
-      const refurbishedProducts = validUser.modules.find(
-        (module) =>
-          module.moduleName === "refurbished_reports" && module.read === true
-      );
-
-      let reports = false;
-      if (
-        (employeeReports && employeeReports.read) ||
-        (orderReports && orderReports.read) ||
-        (userReports && userReports.read) ||
-        (rentalProducts && rentalProducts.read) ||
-        (refurbishedProducts && refurbishedProducts.read)
-      ) {
-        reports = true;
-      }
-
-      if (role === "Admin") {
-        validUserModules.push(
-          {
-            moduleName: "module_access",
-            read: true,
-          },
-          {
-            moduleName: "employee_reports",
-            read: true,
-          },
-          {
-            moduleName: "order_reports",
-            read: true,
-          },
-          {
-            moduleName: "user_reports",
-            read: true,
-          },
-          {
-            moduleName: "rental_reports",
-            read: true,
-          },
-          {
-            moduleName: "refurbished_reports",
-            read: true,
-          }
-        );
-      }
-
-      validUserModules.push({
-        moduleName: "reviews",
-        read: review,
-      });
-
-      validUserModules.push({
-        moduleName: "dashboard",
-        read: true,
-      });
-
-      validUserModules.push({
-        moduleName: "subcategory",
-        read: subCategory,
-      });
-
-      validUserModules.push({
-        moduleName: "settings",
-        read: settings,
-      });
-
-      validUserModules.push({
-        moduleName: "reports",
-        read: reports,
-      });
-
-      return res.status(200).send({ data: validUserModules });
-    } else {
-      return res.status(400).send({ message: "User not found!" });
-    }
-  } catch (error) {
-    console.error("Error:", error.message);
-    res.status(500).send({ error: "Internal Server Error" });
-  }
-});
-
-router.get("/verifyAccess/:role/:phoneNumber?", async (req, res) => {
+router.get("/verifyAccess1/:role/:phoneNumber?", async (req, res) => {
   let { role, phoneNumber } = req.params;
   try {
     let newOrderCount;
@@ -14001,6 +13832,83 @@ router.get("/verifyAccess/:role/:phoneNumber?", async (req, res) => {
     res.status(500).send({ error: "Internal Server Error" });
   }
 });
+
+router.get("/verifyAccess/:role/:phoneNumber?", async (req, res) => {
+  let { role, phoneNumber } = req.params;
+  try {
+    let newOrderCount;
+
+    if (!phoneNumber.startsWith("+91")) {
+      phoneNumber = `+91${phoneNumber}`;
+    }
+
+    const validEmployee = role === "Technician" ? await employeesModel.findOne({ phoneNumber }) : null;
+    if (role === "Technician" && !validEmployee) {
+      return res.status(404).send({ error: "Employee not found!" });
+    }
+
+    const getNewCount = (currentCount, storedCount) => {
+      const newCount = currentCount - storedCount;
+      return newCount < 0 ? 0 : newCount; 
+    };
+
+    const fetchNotificationCount = async (type) => {
+      const notificationCount = await notificationCountModel.findOne({
+        type,
+        "details.employeePhoneNumber": phoneNumber,
+      });
+
+      if (!notificationCount) return 0; 
+
+      const countEntry = notificationCount.details.find(emp => emp.employeePhoneNumber === phoneNumber);
+      return countEntry ? countEntry.count : 0; 
+    };
+
+    const currentOrderCount = await orderModel.countDocuments({ assignedTo: validEmployee ? validEmployee.nameOfEmployee : null }) || 0;
+    const orderCount = await fetchNotificationCount("orderCount");
+    newOrderCount = getNewCount(currentOrderCount, orderCount);
+
+    const newQuoteCount = getNewCount(await quotationModel.countDocuments() || 0, await fetchNotificationCount("quoteCount"));
+    const newUserCount = getNewCount(await usersModel.countDocuments() || 0, await fetchNotificationCount("userCount"));
+    const newGeneralReviewCount = getNewCount(await reviewModel.countDocuments() || 0, await fetchNotificationCount("generalReviewCount"));
+    const newProductReviewCount = getNewCount(await productReviewModel.countDocuments() || 0, await fetchNotificationCount("productReviewCount"));
+    const newSupportCount = getNewCount(await supportFormModel.countDocuments() || 0, await fetchNotificationCount("supportCount"));
+
+    const validUser = await moduleAccessModel.findOne({ roleOfEmployee: role });
+    if (!validUser) {
+      return res.status(400).send({ message: "User not found!" });
+    }
+
+    const validUserModules = validUser.modules.map(module => {
+      const moduleCountMap = {
+        order: newOrderCount,
+        quotation_requests: newQuoteCount,
+        user: newUserCount,
+        support: newSupportCount,
+        review: newGeneralReviewCount,
+        reviews_products: newProductReviewCount,
+      };
+
+      return {
+        moduleName: module.moduleName,
+        read: module.read,
+        count: moduleCountMap[module.moduleName] || undefined,
+      };
+    });
+
+    validUserModules.push({
+      moduleName: "dashboard",
+      read: true,
+    });
+
+    return res.status(200).send({ data: validUserModules });
+    
+  } catch (error) {
+    console.error("Error:", error.message);
+    res.status(500).send({ error: "Internal Server Error" });
+  }
+});
+
 
 router.post(
   "/addBulkRentalLaptop/:role",
