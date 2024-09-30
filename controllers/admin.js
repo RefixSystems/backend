@@ -13469,7 +13469,7 @@ router.delete(
   }
 );
 
-router.get("/verifyAccess1/:role/:phoneNumber?", async (req, res) => {
+router.get("/verifyAccess/:role/:phoneNumber?", async (req, res) => {
   let { role, phoneNumber } = req.params;
   try {
     let newOrderCount;
@@ -13832,83 +13832,6 @@ router.get("/verifyAccess1/:role/:phoneNumber?", async (req, res) => {
     res.status(500).send({ error: "Internal Server Error" });
   }
 });
-
-router.get("/verifyAccess/:role/:phoneNumber?", async (req, res) => {
-  let { role, phoneNumber } = req.params;
-  try {
-    let newOrderCount;
-
-    if (!phoneNumber.startsWith("+91")) {
-      phoneNumber = `+91${phoneNumber}`;
-    }
-
-    const validEmployee = role === "Technician" ? await employeesModel.findOne({ phoneNumber }) : null;
-    if (role === "Technician" && !validEmployee) {
-      return res.status(404).send({ error: "Employee not found!" });
-    }
-
-    const getNewCount = (currentCount, storedCount) => {
-      const newCount = currentCount - storedCount;
-      return newCount < 0 ? 0 : newCount; 
-    };
-
-    const fetchNotificationCount = async (type) => {
-      const notificationCount = await notificationCountModel.findOne({
-        type,
-        "details.employeePhoneNumber": phoneNumber,
-      });
-
-      if (!notificationCount) return 0; 
-
-      const countEntry = notificationCount.details.find(emp => emp.employeePhoneNumber === phoneNumber);
-      return countEntry ? countEntry.count : 0; 
-    };
-
-    const currentOrderCount = await orderModel.countDocuments({ assignedTo: validEmployee ? validEmployee.nameOfEmployee : null }) || 0;
-    const orderCount = await fetchNotificationCount("orderCount");
-    newOrderCount = getNewCount(currentOrderCount, orderCount);
-
-    const newQuoteCount = getNewCount(await quotationModel.countDocuments() || 0, await fetchNotificationCount("quoteCount"));
-    const newUserCount = getNewCount(await usersModel.countDocuments() || 0, await fetchNotificationCount("userCount"));
-    const newGeneralReviewCount = getNewCount(await reviewModel.countDocuments() || 0, await fetchNotificationCount("generalReviewCount"));
-    const newProductReviewCount = getNewCount(await productReviewModel.countDocuments() || 0, await fetchNotificationCount("productReviewCount"));
-    const newSupportCount = getNewCount(await supportFormModel.countDocuments() || 0, await fetchNotificationCount("supportCount"));
-
-    const validUser = await moduleAccessModel.findOne({ roleOfEmployee: role });
-    if (!validUser) {
-      return res.status(400).send({ message: "User not found!" });
-    }
-
-    const validUserModules = validUser.modules.map(module => {
-      const moduleCountMap = {
-        order: newOrderCount,
-        quotation_requests: newQuoteCount,
-        user: newUserCount,
-        support: newSupportCount,
-        review: newGeneralReviewCount,
-        reviews_products: newProductReviewCount,
-      };
-
-      return {
-        moduleName: module.moduleName,
-        read: module.read,
-        count: moduleCountMap[module.moduleName] || undefined,
-      };
-    });
-
-    validUserModules.push({
-      moduleName: "dashboard",
-      read: true,
-    });
-
-    return res.status(200).send({ data: validUserModules });
-    
-  } catch (error) {
-    console.error("Error:", error.message);
-    res.status(500).send({ error: "Internal Server Error" });
-  }
-});
-
 
 router.post(
   "/addBulkRentalLaptop/:role",
