@@ -11860,7 +11860,7 @@ router.get("/viewEmployeeById/:id/:role", async (req, res) => {
 
 // s3
 router.patch(
-  "/updateEmployee/:id/:role",
+  "/updateEmployee1/:id/:role",
   upload.fields([{ name: "image" }, { name: "idProof" }]),
   async (req, res) => {
     const { id, role } = req.params;
@@ -11973,6 +11973,179 @@ router.patch(
       if (imageUrl) updatedEmployee.image = imageUrl;
       if (idProofUrl) updatedEmployee.idProof = idProofUrl;
       if (phoneNumber) updatedEmployee.phoneNumber = phoneNumber;
+      if (nameOfEmployee) {
+        const existName = await employeesModel.findOne({ nameOfEmployee });
+        if (existName) {
+          return res
+            .status(400)
+            .send({ error: "Employee Name already exists!" });
+        }
+        updatedEmployee.nameOfEmployee = nameOfEmployee;
+      }
+      if (dateOfBirth) updatedEmployee.dateOfBirth = dateOfBirth;
+      if (roleOfEmployee) updatedEmployee.roleOfEmployee = roleOfEmployee;
+      if (email) {
+        if (existEmployee.email === "admin01@gmail.com") {
+          return res
+            .status(400)
+            .send({ error: "You can't update Email for this Admin!" });
+        } else {
+          updatedEmployee.email = email;
+        }
+      }
+      if (password) {
+        if (existEmployee.email === "admin01@gmail.com") {
+          return res
+            .status(400)
+            .send({ error: "You can't update Password for this Admin!" });
+        } else {
+          updatedEmployee.password = password;
+        }
+      }
+
+      await employeesModel.findByIdAndUpdate(
+        id,
+        { $set: updatedEmployee },
+        { new: true }
+      );
+
+      return res
+        .status(200)
+        .send({ message: "Employee updated successfully!" });
+    } catch (error) {
+      console.error("Error:", error.message);
+      res.status(500).send({
+        error: "Couldn't update employee now! Please try again later",
+      });
+    }
+  }
+);
+
+router.patch(
+  "/updateEmployee/:id/:role",
+  upload.fields([{ name: "image" }, { name: "idProof" }]),
+  async (req, res) => {
+    const { id, role } = req.params;
+    let {
+      phoneNumber,
+      nameOfEmployee,
+      dateOfBirth,
+      roleOfEmployee,
+      email,
+      password,
+    } = req.body;
+    const { image, idProof } = req.files;
+
+    try {
+      const validUser = await moduleAccessModel.findOne({
+        roleOfEmployee: role,
+      });
+      if (
+        !validUser ||
+        !validUser.modules.some(
+          (module) =>
+            module.moduleName === "employee" && module.fullAccess === true
+        )
+      ) {
+        return res
+          .status(403)
+          .send({ error: "You have no access to do this!" });
+      }
+
+      if (role !== "Admin") {
+        if (nameOfEmployee || roleOfEmployee || email || password) {
+          return res
+            .status(403)
+            .send({ error: "You have no access to do this!" });
+        }
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (email) {
+        if (!emailRegex.test(email)) {
+          return res.status(400).send({ error: "Invalid Email!" });
+        }
+      }
+
+      if (phoneNumber && !phoneNumber.startsWith("+91")) {
+        phoneNumber = `+91${phoneNumber}`;
+      }
+
+      const existEmployee = await employeesModel.findOne({ _id: id });
+      if (!existEmployee) {
+        return res.status(404).send({ error: "Employee not found!" });
+      }
+
+      if (roleOfEmployee) {
+        const validRole = await employeeRolesModel.findOne({
+          nameOfRole: roleOfEmployee,
+        });
+        if (!validRole) {
+          return res.status(400).send({ error: "Invalid Employee Role!" });
+        }
+      }
+
+      if (email && email !== existEmployee.email) {
+        const existEmail = await employeesModel.findOne({ email });
+        if (existEmail) {
+          return res.status(400).send({ error: "Email already exists!" });
+        }
+      }
+
+      const uploadFile = async (file, folder) => {
+        const fileName = `${Date.now()}_${file.originalname}`;
+        const params = {
+          Bucket: process.env.AWS_S3_BUCKET,
+          Key: `${folder}/${fileName}`,
+          Body: file.buffer,
+          ContentType: file.mimetype,
+          ACL: "public-read",
+        };
+
+        return new Promise((resolve, reject) => {
+          s3.upload(params, (err, data) => {
+            if (err) {
+              console.error("Error uploading file:", err);
+              reject(err);
+            } else {
+              resolve(data.Location);
+            }
+          });
+        });
+      };
+
+      let imageUrl, idProofUrl;
+      if (image) {
+        if (!isValidImageExtension(image[0].originalname)) {
+          return res.status(400).send({ error: "Invalid image type!" });
+        }
+        imageUrl = await uploadFile(image[0], "images");
+      }
+      if (idProof) {
+        if (!isValidImageExtension(idProof[0].originalname)) {
+          return res
+            .status(400)
+            .send({ error: "Invalid image type in IdProof!" });
+        }
+        idProofUrl = await uploadFile(idProof[0], "idProofs");
+      }
+
+      let updatedEmployee = {};
+
+      if (imageUrl) updatedEmployee.image = imageUrl;
+      if (idProofUrl) updatedEmployee.idProof = idProofUrl;
+      if (phoneNumber) {
+        updatedEmployee.phoneNumber = phoneNumber
+       
+        await notificationCountModel.findOneAndUpdate({type: "orderCount", 'details.employeePhoneNumber':existEmployee.phoneNumber}, {$set: {'details.$.employeePhoneNumber':phoneNumber}}, {new: true});
+        await notificationCountModel.findOneAndUpdate({type: "quoteCount", 'details.employeePhoneNumber':existEmployee.phoneNumber}, {$set: {'details.$.employeePhoneNumber':phoneNumber}}, {new: true});
+        await notificationCountModel.findOneAndUpdate({type: "userCount", 'details.employeePhoneNumber':existEmployee.phoneNumber}, {$set: {'details.$.employeePhoneNumber':phoneNumber}}, {new: true});
+        await notificationCountModel.findOneAndUpdate({type: "supportCount", 'details.employeePhoneNumber':existEmployee.phoneNumber}, {$set: {'details.$.employeePhoneNumber':phoneNumber}}, {new: true});
+        await notificationCountModel.findOneAndUpdate({type: "transactionCount", 'details.employeePhoneNumber':existEmployee.phoneNumber}, {$set: {'details.$.employeePhoneNumber':phoneNumber}}, {new: true});
+        await notificationCountModel.findOneAndUpdate({type: "generalReviewCount", 'details.employeePhoneNumber':existEmployee.phoneNumber}, {$set: {'details.$.employeePhoneNumber':phoneNumber}}, {new: true});
+        await notificationCountModel.findOneAndUpdate({type: "productReviewCount", 'details.employeePhoneNumber':existEmployee.phoneNumber}, {$set: {'details.$.employeePhoneNumber':phoneNumber}}, {new: true});
+      };
+      
       if (nameOfEmployee) {
         const existName = await employeesModel.findOne({ nameOfEmployee });
         if (existName) {
