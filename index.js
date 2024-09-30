@@ -40,7 +40,7 @@ http.createServer((req, res) => {
     console.log('HTTP server running on port 80 and redirecting to HTTPS');
 });
 
-Start your app on the specified port for development (optional)
+// Start your app on the specified port for development (optional)
 app.listen(port, () => {
     console.log(`Server is running on ${port}`);
 });
