@@ -164,7 +164,7 @@ cron.schedule("* * * * *", async (req, res) => {
     const now = moment().tz("Asia/Kolkata").format("DD/MM/YYYY");
     const pendingCoupons = await couponCodeModel.find({
       startDate: now,
-      status: "Pending",
+      status: {$in: ["Pending", "InActive"]},
     });
     for (const coupon of pendingCoupons) {
       await couponCodeModel.findOneAndUpdate(
