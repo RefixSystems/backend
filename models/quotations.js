@@ -50,6 +50,9 @@ const quotationInfo = new mongoose.Schema({
     status: {
         type: String
     },
+    quantity: {
+        type: Number
+    },
     createdAt: {
         type: String
     },

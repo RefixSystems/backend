@@ -161,24 +161,12 @@ cron.schedule("* * * * *", async (req, res) => {
         );
       }
     }
-    const now = moment().tz("Asia/Kolkata").format("DD/MM/YYYY");
+    const now = moment().format("DD/MM/YYYY");
     const pendingCoupons = await couponCodeModel.find({
       startDate: now,
       status: "Pending",
     });
     for (const coupon of pendingCoupons) {
-      await couponCodeModel.findOneAndUpdate(
-        { _id: coupon._id },
-        { $set: { status: "Active" } },
-        { new: true }
-      );
-    }
-
-    const inActiveCoupons = await couponCodeModel.find({
-      startDate: now,
-      status: "InActive",
-    });
-    for (const coupon of inActiveCoupons) {
       await couponCodeModel.findOneAndUpdate(
         { _id: coupon._id },
         { $set: { status: "Active" } },
@@ -6202,7 +6190,7 @@ router.patch("/updateSupportForms/:id/:role/:phoneNumber", async (req, res) => {
   }
 });
 
-router.delete("/deleteSupportForms/:id/:role", async (req, res) => {
+router.delete("/deleteSupportForms1/:id/:role", async (req, res) => {
   const { id } = req.params;
   const role = req.params.role;
   try {
@@ -6223,6 +6211,40 @@ router.delete("/deleteSupportForms/:id/:role", async (req, res) => {
     } else {
       return res.status(404).send({ error: "Form not found!" });
     }
+  } catch (error) {
+    console.error("Error:", error.message);
+    res
+      .status(500)
+      .send({ error: "Couldn't Delete Form now! Please try again later" });
+  }
+});
+
+router.delete("/deleteSupportForms/:id/:role", async (req, res) => {
+  const { id } = req.params;
+  const role = req.params.role;
+  try {
+    const validUser = await moduleAccessModel.findOne({ roleOfEmployee: role });
+    if (
+      !validUser ||
+      !validUser.modules.some(
+        (module) =>
+          module.moduleName === "support" && module.fullAccess === true
+      )
+    ) {
+      return res.status(403).send({ error: "You have no access to do this!" });
+    }
+
+    const response = await supportFormModel.findOne({_id: id});
+    if (!response) {
+        return res.status(404).send({ error: "Form not found!" });
+    }
+
+    if(response.type === "Custom Laptop Request"){
+    await customConfigurationsModel.findOneAndDelete({supportId: response.supportId});
+  }
+    await supportFormModel.findOneAndDelete({supportId: response.supportId});
+
+    return res.status(200).send({message: "Form deleted successfully!"});
   } catch (error) {
     console.error("Error:", error.message);
     res
@@ -6676,6 +6698,7 @@ router.get("/viewQuotes/:role/:phoneNumber/:search?", async (req, res) => {
         { note: { $regex: searchRegex } },
         { type: { $regex: searchRegex } },
         { status: { $regex: searchRegex } },
+        { requestId: { $regex: searchRegex } },
       ],
     };
 
@@ -8844,7 +8867,7 @@ router.get("/getEmployee/:role/:search?", async (req, res) => {
 
     const query = {
       $or: [{ nameOfEmployee: { $regex: searchRegex } }],
-      roleOfEmployee: { $ne: "Admin" },
+      roleOfEmployee: "Technician",
     };
 
     const response = await employeesModel.find(query);
@@ -8934,274 +8957,6 @@ router.post("/verifyCustomer", async (req, res) => {
   }
 });
 
-// router.patch("/updateOrder/:id/:role", async (req, res) => {
-//   const { id } = req.params;
-//   let {
-//     status,
-//     assignedTo,
-//     assignedOn,
-//     technicianComments,
-//     closedOn,
-//     paidThrough,
-//     finalTransactionId,
-//     finalAmountPaid,
-//     notes,
-//     alternatePhoneNumber,
-//   } = req.body;
-//   const role = req.params.role;
-//   try {
-//     const validUser = await moduleAccessModel.findOne({ roleOfEmployee: role });
-//     if (
-//       !validUser ||
-//       !validUser.modules.some(
-//         (module) => module.moduleName === "order" && module.read === true
-//       )
-//     ) {
-//       return res.status(403).send({ error: "You have no access to do this!" });
-//     }
-
-//     if (alternatePhoneNumber) {
-//       if (!alternatePhoneNumber.startsWith("+91")) {
-//         alternatePhoneNumber = `+91${alternatePhoneNumber}`;
-//       }
-//     }
-
-//     const validOrder = await orderModel.findOne({ _id: id });
-//     if (!validOrder) {
-//       return res.status(404).send({ error: "Order not found!" });
-//     }
-
-//     if (role !== "Admin") {
-//       const customerLocation = await orderModel.findOne({
-//         _id: id,
-//         customerLocationReached: true,
-//       });
-//       if (!customerLocation) {
-//         return res
-//           .status(400)
-//           .send({ error: "You've not reached the customer location yet!" });
-//       }
-//     }
-
-//     if(status === "Completed"){
-//       const validBill = await billingInfoModel.findOne({requestId: validOrder.requestId});
-//       if(!validBill){
-//         return res.status(400).send({error: "You can't Complete the Order without Generating Bill!"})
-//       }
-//     }
-
-//     if(assignedOn){
-//       if(!validOrder.assignedTo && !assignedTo){
-//         return res.status(400).send({error:"Please select a Employee!"});
-//       }
-
-//       const now = moment().startOf('day');
-//       var start = moment(assignedOn, "DD/MM/YYYY").startOf('day');
-//       if(start.isBefore(now)){
-//         return res.status(400).send({error: "AssignedOn shouldn't be the Past Date!"});
-//       }
-//     }
-
-//     if(assignedOn && closedOn){
-//       const closed = moment(closedOn, "DD/MM/YYYY").startOf('day');
-//       if(closed.isBefore(start)){
-//         return res.status(400).send({error: "ClosedOn date shouldn't be earlier than the AssignedOn date"});
-//       }
-
-//       const now = moment().startOf('day');
-//       if(closed.isAfter(now)){
-//         return res.status(400).send({error: "ClosedOn date shouldn't be the future date"});
-//       }
-//     }
-
-//     if(!assignedOn && closedOn){
-//       const closed = moment(closedOn, "DD/MM/YYYY").startOf('day');
-//       const assigned = validOrder.assignedOn;
-//       const assignedDate = moment(assigned, "DD/MM/YYYY").startOf('day');
-//       if(closed.isBefore(assignedDate)){
-//         return res.status(400).send({error: "ClosedOn date shouldn't be earlier than the AssignedOn date"});
-//       }
-
-//       const now = moment().startOf('day');
-//       if(closed.isAfter(now)){
-//         return res.status(400).send({error: "ClosedOn date shouldn't be the future date"});
-//       }
-//     }
-
-//     if (assignedTo) {
-//       if(!validOrder.assignedOn && !assignedOn){
-//         return res.status(400).send({error:"Please select Assigned On Date!"});
-//       }
-
-//       var validEmployee = await employeesModel.findOne({
-//         nameOfEmployee: assignedTo,
-//       });
-//       if (!validEmployee) {
-//         return res.status(404).send({ error: "Please select valid Employee!" });
-//       }
-//     }
-
-//     if(status === "Completed" && !technicianComments){
-//       return res.status(400).send({error: "Technician comments are required when you complete the order!"});
-//     }
-
-//     let updateFields = {};
-//     if (role === "Technician") {
-//       updateFields = {
-//         status,
-//         technicianComments,
-//         closedOn,
-//         paidThrough,
-//         finalTransactionId,
-//         finalAmountPaid,
-//         notes,
-//         alternatePhoneNumber,
-//       };
-//     } else {
-//       if (assignedTo) {
-//         updateFields.status = "In Process";
-//         updateFields.assignedTo = assignedTo;
-//         updateFields.assignedOn = assignedOn;
-//       }
-//       updateFields = {
-//         ...updateFields,
-//         status: status,
-//         technicianComments,
-//         closedOn,
-//         paidThrough,
-//         finalTransactionId,
-//         finalAmountPaid,
-//         notes,
-//         alternatePhoneNumber,
-//       };
-//     }
-
-//     const response = await orderModel.findByIdAndUpdate(
-//       id,
-//       { $set: updateFields },
-//       { new: true }
-//     );
-
-//     if (status === "Completed") {
-//       const validTemplate = await emailTemplateModel.findOne({templateName: "Feedback Email"});
-//       if(validTemplate){
-//         const gmailUserName = await settingsModel.findOne({credentialsKey: "GMAIL_USER" });
-//         const gmailPassword = await settingsModel.findOne({credentialsKey: "GMAIL_PASSWORD" });
-
-//         const transporter = nodemailer.createTransport({
-//           service: "Gmail",
-//           auth: {
-//             user: gmailUserName.credentialsValue,
-//             pass: gmailPassword.credentialsValue
-//           }
-//         });
-
-//         const socialMediaLinks = await settingsModel.find({credentialsKey: {$in: ["facebook", "whatsapp", "twitter", "instagram", "linkedin"]}});
-
-//         const socialMediaMap = socialMediaLinks.reduce((acc, item) => {
-//           acc[item.credentialsKey] = item.credentialsValue;
-//           return acc;
-//         }, {});
-
-//         const message = {
-//         from: gmailUserName.credentialsValue,
-//         to: validOrder.email,
-//         subject: validTemplate.subject,
-//             text: `
-// ${validTemplate.body}
-
-// Follow Us On:
-// Facebook:  ${socialMediaMap.facebook || "N/A"}
-// Twitter:   ${socialMediaMap.twitter || "N/A"}
-// Whatsapp:  ${socialMediaMap.whatsapp || "N/A"}
-// Instagram: ${socialMediaMap.instagram || "N/A"}
-// LinkedIn:  ${socialMediaMap.linkedin || "N/A"}
-// `
-//             };
-//     transporter.sendMail(message);
-
-//         const newEmail = new emailModel({
-//           phoneNumber: validOrder.phoneNumber,
-//           email: validOrder.email,
-//           templateName: validTemplate.templateName
-//         });
-//         await newEmail.save();
-//       } else {
-//         const notification = new notificationModel({
-//           title: `"Feedback Email" Template not Exist!!`,
-//           subtitle: `"Feedback Email" was not exist in the Database. Please add this as soon as possible to send "Feedback Email" to the new Users.`
-//         });
-//         await notification.save();
-//       }
-
-//       const notification = new notificationModel({
-//         title: `Order Completed!!`,
-//         subtitle: `${validOrder.userName} | ${validOrder.phoneNumber} | ${validOrder.type} Order`,
-//         orderDetails: {
-//           phoneNumber: validOrder.phoneNumber,
-//           alternatePhoneNumber: validOrder.alternatePhoneNumber,
-//           email: validOrder.email,
-//           userName: validOrder.userName,
-//           requestId: validOrder.requestId,
-//         },
-//       });
-//       await notification.save();
-//     }
-
-//     if (status) {
-//       await serviceRequestsModel.updateMany(
-//         { requestId: response.requestId },
-//         { $set: { status } },
-//         { new: true }
-//       );
-//       await rentalRequestsModel.updateMany(
-//         { requestId: response.requestId },
-//         { $set: { status } },
-//         { new: true }
-//       );
-//       await refurbishedRequestsModel.updateMany(
-//         { requestId: response.requestId },
-//         { $set: { status } },
-//         { new: true }
-//       );
-//     }
-
-//     if (assignedTo) {
-//       const existNotification = await notificationModel.findOne({employeeEmail: validEmployee.email, subtitle:  `${response.userName} | ${response.phoneNumber}`});
-//       if(!existNotification){
-//       const notification = new notificationModel({
-//         employeeName: assignedTo,
-//         employeeEmail: validEmployee.email,
-//         title: `New Order Received!!`,
-//         subtitle: `${response.userName} | ${response.phoneNumber}`,
-//         orderDetails: {
-//           phoneNumber: response.phoneNumber,
-//           alternatePhoneNumber: response.alternatePhoneNumber,
-//           email: response.email,
-//           userName: response.userName,
-//         },
-//       });
-//       await notification.save();
-//     }
-//     }
-
-//     if(finalAmountPaid){
-//     const validBill = await billingInfoModel.findOne({requestId: validOrder.requestId});
-//     if(validBill){
-//       await billingInfoModel.findOneAndUpdate({_id: validBill._id}, {$set: {finalAmountPaid}}, {new: true});
-//     }
-//   }
-
-//       return res.status(200).send({ message: `Order updated successfully!` });
-
-//   } catch (error) {
-//     console.error("Error:", error.message);
-//     res
-//       .status(500)
-//       .send({ error: "Couldn't Update Order now! Please try again later" });
-//   }
-// });
-
 router.patch("/updateOrder/:id/:role", async (req, res) => {
   const { id } = req.params;
   let {
@@ -9253,7 +9008,7 @@ router.patch("/updateOrder/:id/:role", async (req, res) => {
         !validUser ||
         !validUser.modules.some(
           (module) =>
-            module.moduleName === "order_assigning" && module.read === true
+            module.moduleName === "order_assigning" && module.fullAccess === true
         )
       ) {
         return res.status(403).send({ error: "You've no access to do this!" });
@@ -9556,285 +9311,6 @@ LinkedIn:  ${socialMediaMap.linkedin || "N/A"}
       .send({ error: "Couldn't Update Order now! Please try again later" });
   }
 });
-
-// router.patch("/updateOrder/:id/:role", async (req, res) => {
-//   const { id } = req.params;
-//   let {
-//     status,
-//     assignedTo,
-//     assignedOn,
-//     technicianComments,
-//     closedOn,
-//     paidThrough,
-//     finalTransactionId,
-//     finalAmountPaid,
-//     notes,
-//     alternatePhoneNumber,
-//   } = req.body;
-//   const role = req.params.role;
-//   try {
-//     const validUser = await moduleAccessModel.findOne({ roleOfEmployee: role });
-//     if (
-//       !validUser ||
-//       !validUser.modules.some(
-//         (module) => module.moduleName === "order" && module.read === true
-//       )
-//     ) {
-//       return res.status(403).send({ error: "You have no access to do this!" });
-//     }
-
-//     if (alternatePhoneNumber) {
-//       if (!alternatePhoneNumber.startsWith("+91")) {
-//         alternatePhoneNumber = `+91${alternatePhoneNumber}`;
-//       }
-//     }
-
-//     const validOrder = await orderModel.findOne({ _id: id });
-//     if (!validOrder) {
-//       return res.status(404).send({ error: "Order not found!" });
-//     }
-
-//       if(validOrder.status === "Completed"){
-//         return res.status(400).send({error: "Order was already completed you can't able to Edit!"});
-//       }
-
-//     if(assignedOn || assignedTo){
-//       const validUser = await moduleAccessModel.findOne({roleOfEmployee: role});
-//       if(!validUser || !validUser.modules.some((module) => module.moduleName === "order_assigning" && module.read === true)){
-//         return res.status(403).send({error: "You've no access to do this!"});
-//       }
-//     }
-
-//     if (role !== "Admin" && role !== "Order Assigner") {
-//       const customerLocation = await orderModel.findOne({
-//         _id: id,
-//         customerLocationReached: true,
-//       });
-//       if (!customerLocation) {
-//         return res
-//           .status(400)
-//           .send({ error: "You've not reached the customer location yet!" });
-//       }
-//     }
-
-//     if(status === "Completed"){
-//       const validBill = await billingInfoModel.findOne({requestId: validOrder.requestId});
-//       if(!validBill){
-//         return res.status(400).send({error: "You can't Complete the Order without Generating Bill!"})
-//       }
-//     }
-
-//     if(assignedOn){
-//       if(!validOrder.assignedTo && !assignedTo){
-//         return res.status(400).send({error:"Please select a Employee!"});
-//       }
-
-//       const now = moment().startOf('day');
-//       var start = moment(assignedOn, "DD/MM/YYYY").startOf('day');
-//       if(start.isBefore(now)){
-//         return res.status(400).send({error: "AssignedOn shouldn't be the Past Date!"});
-//       }
-//     }
-
-//     if(assignedOn && closedOn){
-//       const closed = moment(closedOn, "DD/MM/YYYY").startOf('day');
-//       if(closed.isBefore(start)){
-//         return res.status(400).send({error: "ClosedOn date shouldn't be earlier than the AssignedOn date"});
-//       }
-
-//       const now = moment().startOf('day');
-//       if(closed.isAfter(now)){
-//         return res.status(400).send({error: "ClosedOn date shouldn't be the future date"});
-//       }
-//     }
-
-//     if(!assignedOn && closedOn){
-//       const closed = moment(closedOn, "DD/MM/YYYY").startOf('day');
-//       const assigned = validOrder.assignedOn;
-//       const assignedDate = moment(assigned, "DD/MM/YYYY").startOf('day');
-//       if(closed.isBefore(assignedDate)){
-//         return res.status(400).send({error: "ClosedOn date shouldn't be earlier than the AssignedOn date"});
-//       }
-
-//       const now = moment().startOf('day');
-//       if(closed.isAfter(now)){
-//         return res.status(400).send({error: "ClosedOn date shouldn't be the future date"});
-//       }
-//     }
-
-//     if (assignedTo) {
-//       if(!validOrder.assignedOn && !assignedOn){
-//         return res.status(400).send({error:"Please select Assigned On Date!"});
-//       }
-
-//       var validEmployee = await employeesModel.findOne({
-//         nameOfEmployee: assignedTo,
-//       });
-//       if (!validEmployee) {
-//         return res.status(404).send({ error: "Please select valid Employee!" });
-//       }
-//     }
-
-//     if(status === "Completed" && !technicianComments){
-//       return res.status(400).send({error: "Technician comments are required when you complete the order!"});
-//     }
-
-//     let updateFields = {};
-//     if (role === "Technician") {
-//       updateFields = {
-//         status,
-//         technicianComments,
-//         closedOn,
-//         paidThrough,
-//         finalTransactionId,
-//         finalAmountPaid,
-//         notes,
-//         alternatePhoneNumber,
-//       };
-//     } else {
-//       if (assignedTo) {
-//         updateFields.status = "In Process";
-//         updateFields.assignedTo = assignedTo;
-//         updateFields.assignedOn = assignedOn;
-//       }
-//       updateFields = {
-//         ...updateFields,
-//         status: status,
-//         technicianComments,
-//         closedOn,
-//         paidThrough,
-//         finalTransactionId,
-//         finalAmountPaid,
-//         notes,
-//         alternatePhoneNumber,
-//       };
-//     }
-
-//     const response = await orderModel.findByIdAndUpdate(
-//       id,
-//       { $set: updateFields },
-//       { new: true }
-//     );
-
-//     if (status === "Completed") {
-//       const validTemplate = await emailTemplateModel.findOne({templateName: "Feedback Email"});
-//       if(validTemplate){
-//         const gmailUserName = await settingsModel.findOne({credentialsKey: "GMAIL_USER" });
-//         const gmailPassword = await settingsModel.findOne({credentialsKey: "GMAIL_PASSWORD" });
-
-//         const transporter = nodemailer.createTransport({
-//           service: "Gmail",
-//           auth: {
-//             user: gmailUserName.credentialsValue,
-//             pass: gmailPassword.credentialsValue
-//           }
-//         });
-
-//         const socialMediaLinks = await settingsModel.find({credentialsKey: {$in: ["facebook", "whatsapp", "twitter", "instagram", "linkedin"]}});
-
-//         const socialMediaMap = socialMediaLinks.reduce((acc, item) => {
-//           acc[item.credentialsKey] = item.credentialsValue;
-//           return acc;
-//         }, {});
-
-//         const message = {
-//         from: gmailUserName.credentialsValue,
-//         to: validOrder.email,
-//         subject: validTemplate.subject,
-//             text: `
-// ${validTemplate.body}
-
-// Follow Us On:
-// Facebook:  ${socialMediaMap.facebook || "N/A"}
-// Twitter:   ${socialMediaMap.twitter || "N/A"}
-// Whatsapp:  ${socialMediaMap.whatsapp || "N/A"}
-// Instagram: ${socialMediaMap.instagram || "N/A"}
-// LinkedIn:  ${socialMediaMap.linkedin || "N/A"}
-// `
-//             };
-//     transporter.sendMail(message);
-
-//         const newEmail = new emailModel({
-//           phoneNumber: validOrder.phoneNumber,
-//           email: validOrder.email,
-//           templateName: validTemplate.templateName
-//         });
-//         await newEmail.save();
-//       } else {
-//         const notification = new notificationModel({
-//           title: `"Feedback Email" Template not Exist!!`,
-//           subtitle: `"Feedback Email" was not exist in the Database. Please add this as soon as possible to send "Feedback Email" to the new Users.`
-//         });
-//         await notification.save();
-//       }
-
-//       const notification = new notificationModel({
-//         title: `Order Completed!!`,
-//         subtitle: `${validOrder.userName} | ${validOrder.phoneNumber} | ${validOrder.type} Order`,
-//         orderDetails: {
-//           phoneNumber: validOrder.phoneNumber,
-//           alternatePhoneNumber: validOrder.alternatePhoneNumber,
-//           email: validOrder.email,
-//           userName: validOrder.userName,
-//           requestId: validOrder.requestId,
-//         },
-//       });
-//       await notification.save();
-//     }
-
-//     if (status) {
-//       await serviceRequestsModel.updateMany(
-//         { requestId: response.requestId },
-//         { $set: { status } },
-//         { new: true }
-//       );
-//       await rentalRequestsModel.updateMany(
-//         { requestId: response.requestId },
-//         { $set: { status } },
-//         { new: true }
-//       );
-//       await refurbishedRequestsModel.updateMany(
-//         { requestId: response.requestId },
-//         { $set: { status } },
-//         { new: true }
-//       );
-//     }
-
-//     if (assignedTo) {
-//       const existNotification = await notificationModel.findOne({employeeEmail: validEmployee.email, subtitle:  `${response.userName} | ${response.phoneNumber}`});
-//       if(!existNotification){
-//       const notification = new notificationModel({
-//         employeeName: assignedTo,
-//         employeeEmail: validEmployee.email,
-//         title: `New Order Received!!`,
-//         subtitle: `${response.userName} | ${response.phoneNumber}`,
-//         orderDetails: {
-//           phoneNumber: response.phoneNumber,
-//           alternatePhoneNumber: response.alternatePhoneNumber,
-//           email: response.email,
-//           userName: response.userName,
-//         },
-//       });
-//       await notification.save();
-//     }
-//     }
-
-//     if(finalAmountPaid){
-//     const validBill = await billingInfoModel.findOne({requestId: validOrder.requestId});
-//     if(validBill){
-//       await billingInfoModel.findOneAndUpdate({_id: validBill._id}, {$set: {finalAmountPaid}}, {new: true});
-//     }
-//   }
-
-//       return res.status(200).send({ message: `Order updated successfully!` });
-
-//   } catch (error) {
-//     console.error("Error:", error.message);
-//     res
-//       .status(500)
-//       .send({ error: "Couldn't Update Order now! Please try again later" });
-//   }
-// });
 
 router.delete("/deleteOrder/:id/:role", async (req, res) => {
   const { id } = req.params;
@@ -11059,158 +10535,8 @@ router.get("/viewOrderDetailsRefurbished/:role", async (req, res) => {
   }
 });
 
-// // firebase
-// router.post(
-//   "/addEmployee/:role",
-//   upload.fields([{ name: "image" }, { name: "idProof" }]),
-//   async (req, res) => {
-//     let {
-//       phoneNumber,
-//       nameOfEmployee,
-//       dateOfBirth,
-//       roleOfEmployee,
-//       email,
-//       password,
-//       employeeId,
-//     } = req.body;
-//     const { image, idProof } = req.files;
-//     const role = req.params.role;
-
-//     try {
-//       const validUser = await moduleAccessModel.findOne({
-//         roleOfEmployee: role,
-//       });
-//       if (
-//         !validUser ||
-//         !validUser.modules.some(
-//           (module) => module.moduleName === "employee" && module.write === true
-//         )
-//       ) {
-//         return res
-//           .status(403)
-//           .send({ error: "You have no access to do this!" });
-//       }
-
-//       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-//       if(email){
-//         if(!emailRegex.test(email)){
-//           return res.status(400).send({error: "Invalid Email!"});
-//         }
-//       }
-
-//       if (
-//         !phoneNumber ||
-//         !nameOfEmployee ||
-//         !dateOfBirth ||
-//         !roleOfEmployee ||
-//         !email ||
-//         !password
-//       ) {
-//         return res.status(400).send({ error: "Please fill all fields!" });
-//       }
-
-//       if (!phoneNumber.startsWith("+91")) {
-//         phoneNumber = `+91${phoneNumber}`;
-//       }
-
-//       const existEmployee = await employeesModel.findOne({ phoneNumber });
-//       if (existEmployee) {
-//         return res.status(400).send({ error: "Phone Number already exists!" });
-//       }
-
-//       const existEmail = await employeesModel.findOne({ email });
-//       if (existEmail) {
-//         return res.status(400).send({ error: "Email already exists!" });
-//       }
-
-//       const validRole = await employeeRolesModel.findOne({
-//         nameOfRole: roleOfEmployee,
-//       });
-//       if (!validRole) {
-//         return res.status(400).send({ error: "Invalid Employee Role!" });
-//       }
-
-//       if (employeeId) {
-//         const existEmployeeId = await employeesModel.findOne({ employeeId });
-//         if (existEmployeeId) {
-//           return res
-//             .status(400)
-//             .send({
-//               error: "EmployeeID already exists! Please try another one",
-//             });
-//         }
-//       }
-
-//       const uploadImage = async (file, folder) => {
-//         const fileName = `${Date.now()}_${file.originalname}`;
-//         const fileUpload = admin
-//           .storage()
-//           .bucket()
-//           .file(`${folder}/${fileName}`);
-
-//         return new Promise((resolve, reject) => {
-//           const stream = fileUpload.createWriteStream({
-//             metadata: {
-//               contentType: file.mimetype,
-//             },
-//           });
-
-//           stream.on("error", (err) => {
-//             console.error("Error uploading file:", err);
-//             reject(err);
-//           });
-
-//           stream.on("finish", async () => {
-//             await fileUpload.makePublic();
-//             resolve(fileUpload.publicUrl());
-//           });
-
-//           stream.end(file.buffer);
-//         });
-//       };
-
-//       let imageUrl, idProofUrl;
-//       if (image) {
-//         if(!isValidImageExtension(image[0].originalname)){
-//           return res.status(400).send({error: "Invalid image type!"});
-//         }
-//         imageUrl = await uploadImage(image[0], "images");
-//       }
-//       if (idProof) {
-//         if(!isValidImageExtension(idProof[0].originalname)){
-//           return res.status(400).send({error: "Invalid image type in IdProof"});
-//         }
-//         idProofUrl = await uploadImage(idProof[0], "idProofs");
-//       }
-
-//       const newEmployee = new employeesModel({
-//         employeeId,
-//         phoneNumber,
-//         nameOfEmployee,
-//         dateOfBirth,
-//         roleOfEmployee,
-//         image: imageUrl,
-//         idProof: idProofUrl,
-//         email,
-//         password,
-//         status: "Active",
-//       });
-//       await newEmployee.save();
-
-//       return res.status(200).send({ message: "Employee added successfully!" });
-//     } catch (error) {
-//       console.error("Error:", error.message);
-//       res
-//         .status(500)
-//         .send({ error: "Couldn't Add Employee now! Please try again later" });
-//     }
-//   }
-// );
-
-// s3
-
 router.post(
-  "/addEmployee/:role",
+  "/addEmployee1/:role",
   upload.fields([{ name: "image" }, { name: "idProof" }]),
   async (req, res) => {
     let {
@@ -11433,177 +10759,236 @@ router.post(
   }
 );
 
-// router.post(
-//   "/addEmployee/:role",
-//   upload.fields([{ name: "image" }, { name: "idProof" }]),
-//   async (req, res) => {
-//     let {
-//       phoneNumber,
-//       nameOfEmployee,
-//       dateOfBirth,
-//       roleOfEmployee,
-//       email,
-//       password,
-//     } = req.body;
-//     const { image, idProof } = req.files;
-//     const role = req.params.role;
+router.post(
+  "/addEmployee/:role",
+  upload.fields([{ name: "image" }, { name: "idProof" }]),
+  async (req, res) => {
+    let {
+      phoneNumber,
+      nameOfEmployee,
+      dateOfBirth,
+      roleOfEmployee,
+      email,
+      password,
+    } = req.body;
+    const { image, idProof } = req.files;
+    const role = req.params.role;
 
-//     try {
-//       const validUser = await moduleAccessModel.findOne({
-//         roleOfEmployee: role,
-//       });
-//       if (
-//         !validUser ||
-//         !validUser.modules.some(
-//           (module) => module.moduleName === "employee" && module.write === true
-//         )
-//       ) {
-//         return res
-//           .status(403)
-//           .send({ error: "You have no access to do this!" });
-//       }
+    try {
+      const validUser = await moduleAccessModel.findOne({
+        roleOfEmployee: role,
+      });
+      if (
+        !validUser ||
+        !validUser.modules.some(
+          (module) => module.moduleName === "employee" && module.write === true
+        )
+      ) {
+        return res
+          .status(403)
+          .send({ error: "You have no access to do this!" });
+      }
 
-//       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-//       if (email) {
-//         if (!emailRegex.test(email)) {
-//           return res.status(400).send({ error: "Invalid Email!" });
-//         }
-//       }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (email) {
+        if (!emailRegex.test(email)) {
+          return res.status(400).send({ error: "Invalid Email!" });
+        }
+      }
 
-//       if (
-//         !phoneNumber ||
-//         !nameOfEmployee ||
-//         !dateOfBirth ||
-//         !roleOfEmployee ||
-//         !password
-//       ) {
-//         return res.status(400).send({ error: "Please fill all fields!" });
-//       }
+      if (
+        !phoneNumber ||
+        !nameOfEmployee ||
+        !dateOfBirth ||
+        !roleOfEmployee ||
+        !password
+      ) {
+        return res.status(400).send({ error: "Please fill all fields!" });
+      }
 
-//       if (!phoneNumber.startsWith("+91")) {
-//         phoneNumber = `+91${phoneNumber}`;
-//       }
+      if (!phoneNumber.startsWith("+91")) {
+        phoneNumber = `+91${phoneNumber}`;
+      }
 
-//       const existEmployee = await employeesModel.findOne({ phoneNumber });
-//       if (existEmployee) {
-//         return res.status(400).send({ error: "Phone Number already exists!" });
-//       }
+      const existEmployee = await employeesModel.findOne({ phoneNumber });
+      if (existEmployee) {
+        return res.status(400).send({ error: "Phone Number already exists!" });
+      }
 
-//       const existEmployee1 = await employeesModel.findOne({ nameOfEmployee });
-//       if (existEmployee1) {
-//         return res.status(400).send({ error: "Employee Name already exists!" });
-//       }
+      const existEmployee1 = await employeesModel.findOne({ nameOfEmployee });
+      if (existEmployee1) {
+        return res.status(400).send({ error: "Employee Name already exists!" });
+      }
 
-//       if (email) {
-//         const existEmail = await employeesModel.findOne({ email });
-//         if (existEmail) {
-//           return res.status(400).send({ error: "Email already exists!" });
-//         }
-//       }
+      if (email) {
+        const existEmail = await employeesModel.findOne({ email });
+        if (existEmail) {
+          return res.status(400).send({ error: "Email already exists!" });
+        }
+      }
 
-//       const validRole = await employeeRolesModel.findOne({
-//         nameOfRole: roleOfEmployee,
-//       });
-//       if (!validRole) {
-//         return res.status(400).send({ error: "Invalid Employee Role!" });
-//       }
+      const validRole = await employeeRolesModel.findOne({
+        nameOfRole: roleOfEmployee,
+      });
+      if (!validRole) {
+        return res.status(400).send({ error: "Invalid Employee Role!" });
+      }
 
-//       const uploadImage = async (file, folder) => {
-//         const fileName = `${Date.now()}_${file.originalname}`;
-//         const params = {
-//           Bucket: process.env.AWS_S3_BUCKET,
-//           Key: `${folder}/${fileName}`,
-//           Body: file.buffer,
-//           ContentType: file.mimetype,
-//           ACL: "public-read",
-//         };
+      const uploadImage = async (file, folder) => {
+        const fileName = `${Date.now()}_${file.originalname}`;
+        const params = {
+          Bucket: process.env.AWS_S3_BUCKET,
+          Key: `${folder}/${fileName}`,
+          Body: file.buffer,
+          ContentType: file.mimetype,
+          ACL: "public-read",
+        };
 
-//         return new Promise((resolve, reject) => {
-//           s3.upload(params, (err, data) => {
-//             if (err) {
-//               console.error("Error uploading file:", err);
-//               reject(err);
-//             } else {
-//               resolve(data.Location);
-//             }
-//           });
-//         });
-//       };
+        return new Promise((resolve, reject) => {
+          s3.upload(params, (err, data) => {
+            if (err) {
+              console.error("Error uploading file:", err);
+              reject(err);
+            } else {
+              resolve(data.Location);
+            }
+          });
+        });
+      };
 
-//       let imageUrl, idProofUrl;
-//       if (image) {
-//         if (!isValidImageExtension(image[0].originalname)) {
-//           return res.status(400).send({ error: "Invalid image type!" });
-//         }
-//         imageUrl = await uploadImage(image[0], "images");
-//       }
-//       if (idProof) {
-//         if (!isValidImageExtension(idProof[0].originalname)) {
-//           return res
-//             .status(400)
-//             .send({ error: "Invalid image type in IdProof" });
-//         }
-//         idProofUrl = await uploadImage(idProof[0], "idProofs");
-//       }
+      let imageUrl, idProofUrl;
+      if (image) {
+        if (!isValidImageExtension(image[0].originalname)) {
+          return res.status(400).send({ error: "Invalid image type!" });
+        }
+        imageUrl = await uploadImage(image[0], "images");
+      }
+      if (idProof) {
+        if (!isValidImageExtension(idProof[0].originalname)) {
+          return res
+            .status(400)
+            .send({ error: "Invalid image type in IdProof" });
+        }
+        idProofUrl = await uploadImage(idProof[0], "idProofs");
+      }
 
-//       const now = moment().tz("Asia/Kolkata").format("DD/MM/YY");
-//       const year = now.split("/")[2];
+      const now = moment().tz("Asia/Kolkata").format("DD/MM/YY");
+      const year = now.split("/")[2];
 
-//       const prevEmployeeId = await employeesModel
-//         .findOne()
-//         .sort({ createdAt: -1 })
-//         .limit(1);
-//       let newEmployeeId;
-//       if (prevEmployeeId) {
-//         const idOfEmployee = prevEmployeeId.employeeId.substring(4);
+      const prevEmployeeId = await employeesModel
+        .findOne()
+        .sort({ createdAt: -1 })
+        .limit(1);
+      let newEmployeeId;
+      if (prevEmployeeId) {
+        const idOfEmployee = prevEmployeeId.employeeId.substring(4);
 
-//         const previousEmployeeId = parseFloat(idOfEmployee, 10) + 1;
-//         const previousEmployeeIdFormatted = previousEmployeeId
-//           .toString()
-//           .padStart(2, "0");
+        const previousEmployeeId = parseFloat(idOfEmployee, 10) + 1;
+        const previousEmployeeIdFormatted = previousEmployeeId
+          .toString()
+          .padStart(2, "0");
 
-//         newEmployeeId = `RS${year}${previousEmployeeIdFormatted}`;
-//       } else [(newEmployeeId = `RS${year}01`)];
+        newEmployeeId = `RS${year}${previousEmployeeIdFormatted}`;
+      } else [(newEmployeeId = `RS${year}01`)];
 
-//       const newEmployee = new employeesModel({
-//         employeeId: newEmployeeId,
-//         phoneNumber,
-//         nameOfEmployee,
-//         dateOfBirth,
-//         roleOfEmployee,
-//         image: imageUrl,
-//         idProof: idProofUrl,
-//         email: email || null,
-//         password,
-//         status: "Active",
-//       });
-//       await newEmployee.save();
+      const newEmployee = new employeesModel({
+        employeeId: newEmployeeId,
+        phoneNumber,
+        nameOfEmployee,
+        dateOfBirth,
+        roleOfEmployee,
+        image: imageUrl,
+        idProof: idProofUrl,
+        email: email || null,
+        password,
+        status: "Active",
+      });
+      await newEmployee.save();
 
-//       const newNotificationCount = new notificationCountModel({
-//         type: "orderCount",
-//         employeePhoneNumber: phoneNumber,
-//         count: 0
-//       });
-//       await newNotificationCount.save();
+      let currentOrderCount;
+      if(newEmployee.roleOfEmployee === "Technician"){
+        currentOrderCount = 0;
+      } else {
+        currentOrderCount = await orderModel.countDocuments();
+      }
+      await notificationCountModel.findOneAndUpdate(
+        { type: "orderCount" },
+        {
+          $push: {
+            details: { employeePhoneNumber: newEmployee.phoneNumber, count:currentOrderCount },
+          },
+        },
+        { new: true }
+      );
+      const currentQuoteCount = await quotationModel.countDocuments();
+      await notificationCountModel.findOneAndUpdate(
+        { type: "quoteCount" },
+        {
+          $push: {
+            details: { employeePhoneNumber: newEmployee.phoneNumber, count: currentQuoteCount },
+          },
+        },
+        { new: true }
+      );
+      const currentUserCount = await usersModel.countDocuments();
+      await notificationCountModel.findOneAndUpdate(
+        { type: "userCount" },
+        {
+          $push: {
+            details: { employeePhoneNumber: newEmployee.phoneNumber, count: currentUserCount },
+          },
+        },
+        { new: true }
+      );
+      const currentSupportCount = await supportFormModel.countDocuments();
+      await notificationCountModel.findOneAndUpdate(
+        { type: "supportCount" },
+        {
+          $push: {
+            details: { employeePhoneNumber: newEmployee.phoneNumber, count: currentSupportCount },
+          },
+        },
+        { new: true }
+      );
+      const currentReviewCount = await reviewModel.countDocuments();
+      await notificationCountModel.findOneAndUpdate(
+        { type: "generalReviewCount" },
+        {
+          $push: {
+            details: { employeePhoneNumber: newEmployee.phoneNumber, count: currentReviewCount },
+          },
+        },
+        { new: true }
+      );
+      const currentProductReviewCount = await productReviewModel.countDocuments();
+      await notificationCountModel.findOneAndUpdate(
+        { type: "productReviewCount" },
+        {
+          $push: {
+            details: { employeePhoneNumber: newEmployee.phoneNumber, count:currentProductReviewCount },
+          },
+        },
+        { new: true }
+      );
 
-//       return res.status(200).send({ message: "Employee added successfully!" });
-//     } catch (error) {
-//       console.error("Error:", error.message);
-//       res
-//         .status(500)
-//         .send({ error: "Couldn't Add Employee now! Please try again later" });
-//     }
-//   }
-// );
+      return res.status(200).send({ message: "Employee added successfully!" });
+    } catch (error) {
+      console.error("Error:", error.message);
+      res
+        .status(500)
+        .send({ error: "Couldn't Add Employee now! Please try again later" });
+    }
+  }
+);
 
-router.get("/viewEmployees/:role/:search?", async (req, res) => {
+router.get("/viewEmployees/:role/:adminPhoneNumber/:search?", async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const sortBy = req.query.sortBy || "nameOfEmployee";
   const sortOrder = req.query.sortOrder === "asc" ? -1 : 1;
   const searchString = req.params.search || "";
   const role = req.params.role;
-  const email = req.query.email;
+  const adminPhoneNumber = req.params.adminPhoneNumber;
   try {
     let moduleAccess;
     const validUser = await moduleAccessModel.findOne({ roleOfEmployee: role });
@@ -11653,9 +11038,9 @@ router.get("/viewEmployees/:role/:search?", async (req, res) => {
     );
 
     let employees, paginationInfo, totalItems, totalPages;
-    if (role !== "Admin" && email) {
-      employees = await employeesModel.findOne({ email });
-
+    if (role !== "Admin" && adminPhoneNumber) {
+      const employee = await employeesModel.findOne({ phoneNumber: adminPhoneNumber });
+      employees = {...employee.toObject(), sameEmployee: "yes"}
       paginationInfo = {
         totalItems: 1,
         totalPages: 1,
@@ -11669,6 +11054,7 @@ router.get("/viewEmployees/:role/:search?", async (req, res) => {
         return {
           ...employee.toObject(),
           s_no: serialNumbers[index],
+          sameEmployee: (employee.phoneNumber === adminPhoneNumber) ? "yes" : "no"
         };
       });
 
@@ -11872,10 +11258,10 @@ router.get("/viewEmployeeById/:id/:role", async (req, res) => {
 
 // s3
 router.patch(
-  "/updateEmployee1/:id/:role",
+  "/updateEmployee1/:id/:role/:adminPhoneNumber",
   upload.fields([{ name: "image" }, { name: "idProof" }]),
   async (req, res) => {
-    const { id, role } = req.params;
+    const { id, role, adminPhoneNumber } = req.params;
     let {
       phoneNumber,
       nameOfEmployee,
@@ -11925,6 +11311,10 @@ router.patch(
       if (!existEmployee) {
         return res.status(404).send({ error: "Employee not found!" });
       }
+
+      if(existEmployee.roleOfEmployee === "Admin" && adminPhoneNumber !== "+918978722969"){
+        return res.status(400).send({error: "You can't edit other Admin credentials!"});
+      } 
 
       if (roleOfEmployee) {
         const validRole = await employeeRolesModel.findOne({
@@ -11986,13 +11376,18 @@ router.patch(
       if (idProofUrl) updatedEmployee.idProof = idProofUrl;
       if (phoneNumber) updatedEmployee.phoneNumber = phoneNumber;
       if (nameOfEmployee) {
-        const existName = await employeesModel.findOne({ nameOfEmployee });
-        if (existName) {
-          return res
+        if(existEmployee.nameOfEmployee === nameOfEmployee){
+          updatedEmployee.nameOfEmployee = nameOfEmployee;
+        } else {
+          const existName = await employeesModel.findOne({ nameOfEmployee });
+          if (existName) {
+            return res
             .status(400)
             .send({ error: "Employee Name already exists!" });
-        }
-        updatedEmployee.nameOfEmployee = nameOfEmployee;
+          } else{
+            updatedEmployee.nameOfEmployee = nameOfEmployee;
+          }
+        }        
       }
       if (dateOfBirth) updatedEmployee.dateOfBirth = dateOfBirth;
       if (roleOfEmployee) updatedEmployee.roleOfEmployee = roleOfEmployee;
@@ -12004,6 +11399,7 @@ router.patch(
         } else {
           updatedEmployee.email = email;
         }
+        updatedEmployee.email = email;
       }
       if (password) {
         if (existEmployee.email === "admin01@gmail.com") {
@@ -12034,10 +11430,10 @@ router.patch(
 );
 
 router.patch(
-  "/updateEmployee/:id/:role",
+  "/updateEmployee/:id/:role/:adminPhoneNumber",
   upload.fields([{ name: "image" }, { name: "idProof" }]),
   async (req, res) => {
-    const { id, role } = req.params;
+    const { id, role, adminPhoneNumber } = req.params;
     let {
       phoneNumber,
       nameOfEmployee,
@@ -12087,6 +11483,10 @@ router.patch(
       if (!existEmployee) {
         return res.status(404).send({ error: "Employee not found!" });
       }
+
+      if(existEmployee.roleOfEmployee === "Admin" && adminPhoneNumber !== "+918978722969"){
+        return res.status(400).send({error: "You can't edit other Admin credentials!"});
+      } 
 
       if (roleOfEmployee) {
         const validRole = await employeeRolesModel.findOne({
@@ -12146,26 +11546,20 @@ router.patch(
 
       if (imageUrl) updatedEmployee.image = imageUrl;
       if (idProofUrl) updatedEmployee.idProof = idProofUrl;
-      if (phoneNumber) {
-        updatedEmployee.phoneNumber = phoneNumber
-       
-        await notificationCountModel.findOneAndUpdate({type: "orderCount", 'details.employeePhoneNumber':existEmployee.phoneNumber}, {$set: {'details.$.employeePhoneNumber':phoneNumber}}, {new: true});
-        await notificationCountModel.findOneAndUpdate({type: "quoteCount", 'details.employeePhoneNumber':existEmployee.phoneNumber}, {$set: {'details.$.employeePhoneNumber':phoneNumber}}, {new: true});
-        await notificationCountModel.findOneAndUpdate({type: "userCount", 'details.employeePhoneNumber':existEmployee.phoneNumber}, {$set: {'details.$.employeePhoneNumber':phoneNumber}}, {new: true});
-        await notificationCountModel.findOneAndUpdate({type: "supportCount", 'details.employeePhoneNumber':existEmployee.phoneNumber}, {$set: {'details.$.employeePhoneNumber':phoneNumber}}, {new: true});
-        await notificationCountModel.findOneAndUpdate({type: "transactionCount", 'details.employeePhoneNumber':existEmployee.phoneNumber}, {$set: {'details.$.employeePhoneNumber':phoneNumber}}, {new: true});
-        await notificationCountModel.findOneAndUpdate({type: "generalReviewCount", 'details.employeePhoneNumber':existEmployee.phoneNumber}, {$set: {'details.$.employeePhoneNumber':phoneNumber}}, {new: true});
-        await notificationCountModel.findOneAndUpdate({type: "productReviewCount", 'details.employeePhoneNumber':existEmployee.phoneNumber}, {$set: {'details.$.employeePhoneNumber':phoneNumber}}, {new: true});
-      };
-      
+      if (phoneNumber) updatedEmployee.phoneNumber = phoneNumber;
       if (nameOfEmployee) {
-        const existName = await employeesModel.findOne({ nameOfEmployee });
-        if (existName) {
-          return res
+        if(existEmployee.nameOfEmployee === nameOfEmployee){
+          updatedEmployee.nameOfEmployee = nameOfEmployee;
+        } else {
+          const existName = await employeesModel.findOne({ nameOfEmployee });
+          if (existName) {
+            return res
             .status(400)
             .send({ error: "Employee Name already exists!" });
-        }
-        updatedEmployee.nameOfEmployee = nameOfEmployee;
+          } else{
+            updatedEmployee.nameOfEmployee = nameOfEmployee;
+          }
+        }        
       }
       if (dateOfBirth) updatedEmployee.dateOfBirth = dateOfBirth;
       if (roleOfEmployee) updatedEmployee.roleOfEmployee = roleOfEmployee;
@@ -12177,6 +11571,7 @@ router.patch(
         } else {
           updatedEmployee.email = email;
         }
+        updatedEmployee.email = email;
       }
       if (password) {
         if (existEmployee.email === "admin01@gmail.com") {
@@ -12206,7 +11601,7 @@ router.patch(
   }
 );
 
-router.delete("/deleteEmployee/:id/:role", async (req, res) => {
+router.delete("/deleteEmployee1/:id/:role", async (req, res) => {
   const { id } = req.params;
   const role = req.params.role;
   try {
@@ -12229,6 +11624,52 @@ router.delete("/deleteEmployee/:id/:role", async (req, res) => {
     if (validEmployee.email === "admin01@gmail.com") {
       return res.status(400).send({ error: "You can't delete this Admin!" });
     }
+
+    const response = await employeesModel.findByIdAndDelete(id);
+    if (response) {
+      return res
+        .status(200)
+        .send({ message: "Employee deleted successfully!" });
+    } else {
+      return res.status(404).send({ error: "Employee not found!" });
+    }
+  } catch (error) {
+    console.error("Error:", error.message);
+    res
+      .status(500)
+      .send({ error: "Couldn't Delete Employee now! Please try again later" });
+  }
+});
+
+router.delete("/deleteEmployee/:id/:role/:adminPhoneNumber", async (req, res) => {
+  const { id } = req.params;
+  const role = req.params.role;
+  const adminPhoneNumber = req.params.adminPhoneNumber;
+  try {
+    const validUser = await moduleAccessModel.findOne({ roleOfEmployee: role });
+    if (
+      !validUser ||
+      !validUser.modules.some(
+        (module) =>
+          module.moduleName === "employee" && module.fullAccess === true
+      )
+    ) {
+      return res.status(403).send({ error: "You have no access to do this!" });
+    };
+
+    const validEmployee = await employeesModel.findOne({ _id: id });
+    if (!validEmployee) {
+      return res.status(404).send({ error: "Employee not found!" });
+    };
+
+    if (validEmployee.email === "admin01@gmail.com") {
+      return res.status(400).send({ error: "You can't delete this Admin!" });
+    }
+
+    if(validEmployee.roleOfEmployee === "Admin" && adminPhoneNumber !== "+918978722969"){
+      return res.status(400).send({error: "You can't delete another Admin!"});
+    } 
+
 
     const response = await employeesModel.findByIdAndDelete(id);
     if (response) {
@@ -13654,6 +13095,175 @@ router.delete(
   }
 );
 
+router.get("/verifyAccess1/:role", async (req, res) => {
+  const { role } = req.params;
+  try {
+    const validUser = await moduleAccessModel.findOne({ roleOfEmployee: role });
+
+    if (validUser) {
+      const validUserModules = validUser.modules.map((module) => ({
+        moduleName: module.moduleName,
+        read: module.read,
+      }));
+
+      const reviews = validUser.modules.find(
+        (module) => module.moduleName === "review" && module.read === true
+      );
+      const productReviews = validUser.modules.find(
+        (module) =>
+          module.moduleName === "reviews_products" && module.read === true
+      );
+
+      let review = false;
+      if (
+        (reviews && reviews.read) ||
+        (productReviews && productReviews.read)
+      ) {
+        review = true;
+      }
+
+      const issues = validUser.modules.find(
+        (module) => module.moduleName === "device" && module.read === true
+      );
+      const rentals = validUser.modules.find(
+        (module) =>
+          module.moduleName === "rental_laptop" && module.read === true
+      );
+      const refurbisheds = validUser.modules.find(
+        (module) =>
+          module.moduleName === "refurbished_laptop" && module.read === true
+      );
+
+      let subCategory = false;
+      if (
+        (issues && issues.read) ||
+        (rentals && rentals.read) ||
+        (refurbisheds && refurbisheds.read)
+      ) {
+        subCategory = true;
+      }
+
+      const general = validUser.modules.find(
+        (module) =>
+          module.moduleName === "general_settings" && module.read === true
+      );
+      const credentials = validUser.modules.find(
+        (module) =>
+          module.moduleName === "credentials_settings" && module.read === true
+      );
+      const gallery = validUser.modules.find(
+        (module) => module.moduleName === "gallery" && module.read === true
+      );
+      const mostBookedService = validUser.modules.find(
+        (module) =>
+          module.moduleName === "mostBookedService" && module.read === true
+      );
+
+      let settings = false;
+      if (
+        (general && general.read) ||
+        (credentials && credentials.read) ||
+        (mostBookedService && mostBookedService.read) ||
+        (gallery && gallery.read)
+      ) {
+        settings = true;
+      }
+
+      const employeeReports = validUser.modules.find(
+        (module) =>
+          module.moduleName === "employee_reports" && module.read === true
+      );
+      const orderReports = validUser.modules.find(
+        (module) =>
+          module.moduleName === "order_reports" && module.read === true
+      );
+      const userReports = validUser.modules.find(
+        (module) => module.moduleName === "user_reports" && module.read === true
+      );
+      const rentalProducts = validUser.modules.find(
+        (module) =>
+          module.moduleName === "rental_reports" && module.read === true
+      );
+      const refurbishedProducts = validUser.modules.find(
+        (module) =>
+          module.moduleName === "refurbished_reports" && module.read === true
+      );
+
+      let reports = false;
+      if (
+        (employeeReports && employeeReports.read) ||
+        (orderReports && orderReports.read) ||
+        (userReports && userReports.read) ||
+        (rentalProducts && rentalProducts.read) ||
+        (refurbishedProducts && refurbishedProducts.read)
+      ) {
+        reports = true;
+      }
+
+      if (role === "Admin") {
+        validUserModules.push(
+          {
+            moduleName: "module_access",
+            read: true,
+          },
+          {
+            moduleName: "employee_reports",
+            read: true,
+          },
+          {
+            moduleName: "order_reports",
+            read: true,
+          },
+          {
+            moduleName: "user_reports",
+            read: true,
+          },
+          {
+            moduleName: "rental_reports",
+            read: true,
+          },
+          {
+            moduleName: "refurbished_reports",
+            read: true,
+          }
+        );
+      }
+
+      validUserModules.push({
+        moduleName: "reviews",
+        read: review,
+      });
+
+      validUserModules.push({
+        moduleName: "dashboard",
+        read: true,
+      });
+
+      validUserModules.push({
+        moduleName: "subcategory",
+        read: subCategory,
+      });
+
+      validUserModules.push({
+        moduleName: "settings",
+        read: settings,
+      });
+
+      validUserModules.push({
+        moduleName: "reports",
+        read: reports,
+      });
+
+      return res.status(200).send({ data: validUserModules });
+    } else {
+      return res.status(400).send({ message: "User not found!" });
+    }
+  } catch (error) {
+    console.error("Error:", error.message);
+    res.status(500).send({ error: "Internal Server Error" });
+  }
+});
+
 router.get("/verifyAccess/:role/:phoneNumber?", async (req, res) => {
   let { role, phoneNumber } = req.params;
   try {
@@ -14454,15 +14064,23 @@ router.patch("/updateMostBookedService/:id/:role", async (req, res) => {
     }
 
     let updatedData = {};
-    if (serviceName) {
-      const existService = await mostBookedServiceModel.findOne({
-        serviceName,
-      });
-      if (existService) {
-        return res.status(400).send({ error: "Service name already exists!" });
+
+    const service = await mostBookedServiceModel.findOne({_id: id});
+    if (serviceName) {      
+      if(service.serviceName === serviceName){
+        updatedData.serviceName = serviceName;
+      } else {
+        const existService = await mostBookedServiceModel.findOne({
+          serviceName,
+        });
+        if (existService) {
+          return res.status(400).send({ error: "Service name already exists!" });
+        } else {
+          updatedData.serviceName = serviceName;
+        }
       }
-      updatedData.serviceName = serviceName;
     }
+    
     if (applicableSystems) updatedData.applicableSystems = applicableSystems;
 
     const response = await mostBookedServiceModel.findOneAndUpdate(
@@ -14479,7 +14097,7 @@ router.patch("/updateMostBookedService/:id/:role", async (req, res) => {
     console.error("Error:", error.message);
     res
       .status(500)
-      .send({ error: "Couldn't update service now! Please try again later" });
+      .send({ error: error.message });
   }
 });
 
@@ -14695,30 +14313,6 @@ router.post("/clearUser/:phoneNumber", async (req, res) => {
     deleteResults.refurbishedReviews = await refurbishedLaptopModel.updateMany(
       { "reviews.phoneNumber": phoneNumber },
       { $pull: { reviews: { phoneNumber } } }
-    );
-    deleteResults.notificationCounts = await notificationCountModel.updateMany(
-      { type: "orderCount"},
-      { $pull: {details: {employeePhoneNumber: phoneNumber } }}
-    );
-    deleteResults.notificationCounts = await notificationCountModel.updateMany(
-      { type: "quoteCount"},
-      { $pull: {details: {employeePhoneNumber: phoneNumber } }}
-    );
-    deleteResults.notificationCounts = await notificationCountModel.updateMany(
-      { type: "userCount"},
-      { $pull: {details: {employeePhoneNumber: phoneNumber } }}
-    );
-    deleteResults.notificationCounts = await notificationCountModel.updateMany(
-      { type: "supportCount"},
-      { $pull: {details: {employeePhoneNumber: phoneNumber } }}
-    );
-    deleteResults.notificationCounts = await notificationCountModel.updateMany(
-      { type: "generalReviewCount"},
-      { $pull: {details: {employeePhoneNumber: phoneNumber } }}
-    );
-    deleteResults.notificationCounts = await notificationCountModel.updateMany(
-      { type: "productReviewCount"},
-      { $pull: {details: {employeePhoneNumber: phoneNumber } }}
     );
 
     const notDeleted = Object.entries(deleteResults)
@@ -17315,6 +16909,9 @@ router.post("/resetCounts", async (req, res) => {
       phoneNumber = `+91${phoneNumber}`;
     }
 
+    const employee = await employeesModel.findOne({phoneNumber});
+    const role = employee.roleOfEmployee;
+
     if (type === "user") {
       const validData = await notificationCountModel.findOne({
         type: "userCount",
@@ -17354,14 +16951,20 @@ router.post("/resetCounts", async (req, res) => {
       if (!validData) {
         return res.status(404).send({ error: "Data not found!" });
       }
-      const currentOrderCount = await orderModel.countDocuments();
-      console.log("currentOrderCount:", currentOrderCount);
+
+      let currentOrderCount;
+      if(role === "Technician"){
+        currentOrderCount = await orderModel.countDocuments({assignedTo: employee.nameOfEmployee});
+      } else {
+        currentOrderCount = await orderModel.countDocuments();
+      }
 
       await notificationCountModel.findOneAndUpdate(
         { type: "orderCount", "details.employeePhoneNumber": phoneNumber },
         { $set: { "details.$.count": currentOrderCount } },
         { new: true }
       );
+
       return res.status(200).send({ message: "Count resetted!" });
     } else if (type === "review") {
       const validData = await notificationCountModel.findOne({

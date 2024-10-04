@@ -1162,464 +1162,7 @@ router.post("/addCart", async (req, res) => {
   }
 });
 
-// router.post("/addQuote/:cartId", async (req, res) => {
-//   let {
-//     phoneNumber,
-//     alternatePhoneNumber,
-//     email,
-//     userName,
-//     address,
-//     transactionId,
-//     amount,
-//     GST,
-//     coupon,
-//     initialAmountPaidThrough
-//   } = req.body;
-//   const { cartId } = req.params;
-  
-//   try {
-//     if (!phoneNumber || !address || !userName || !email || !cartId ) {
-//       return res.status(400).send({ error: "Please fill all fields!" });
-//     }
-
-//     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-//     if(email){
-//       if(!emailRegex.test(email)){
-//         return res.status(400).send({error: "Invalid Email!"});
-//       }
-//     }
-
-//     if (!phoneNumber.startsWith("+91")) {
-//       phoneNumber = `+91${phoneNumber}`;
-//     }
-
-//     if(alternatePhoneNumber){
-//       if(!alternatePhoneNumber.startsWith("+91")){
-//         alternatePhoneNumber = `+91${alternatePhoneNumber}`
-//       }
-//     };
-
-//     const existUser = await usersModel.findOne({ phoneNumber });
-//     if (!existUser) {
-//       return res.status(404).send({ error: "User not logged in! Please login to continue further" });
-//     }
-
-//     const validCart = await cartModel.findOne({ _id: cartId, status: "Pending" });
-//     if (!validCart) {
-//       return res.status(400).send({ error: "Cart not found!" });
-//     };
-
-//     if(coupon){
-//       var validCoupon = await couponCodeModel.findOne({
-//         code: coupon,
-//         status: "Active",
-//       });
-      
-//       if (!validCoupon) {
-//         return res.status(400).send({ error: "Invalid Coupon Code!" });
-//       } else {
-//         const expiredCoupon =
-//           validCoupon.redemeedUsers.length >= validCoupon.limit;
-//         if (expiredCoupon) {
-//           return res.status(400).send({ error: "Expired Coupon Code!" });
-//         }
-  
-//         const usedCoupon = await couponCodeModel.findOne({
-//           code: coupon,
-//           "redemeedUsers.phoneNumber": phoneNumber,
-//         });
-//         if (usedCoupon) {
-//           return res
-//             .status(400)
-//             .send({ error: "You've already used this Coupon!" });
-//         }
-//       }
-//       console.log({"coupon:": validCoupon});
-//     } 
-    
-//     const products = validCart.products;
-    
-//     for (const cart of products) {
-//       if (cart.type === "Repair") {
-//         const randomId = getRandomGenerationId();
-//         const newOrder = new orderModel({
-//           phoneNumber,
-//           alternatePhoneNumber,
-//           email,
-//           userName,
-//           address,
-//           transactionId: transactionId || null,
-//           amount: amount || null,
-//           GST: GST || null,
-//           coupon: coupon || null,
-//           notes: null,
-//           type: "Repair",
-//       requestId:`${randomId}REP`,
-//       initialAmountPaidThrough: initialAmountPaidThrough || null,
-//           status: "Pending",
-//           assignedTo: null,
-//           assignedOn: null,
-//           technicianComments: null,
-//           closedOn: null,
-//           paidThrough: null,
-//           finalTransactionId: null,
-//           totalAmount: null,
-//           billGenerated: "no",
-//           totalAmountPaid: amount || 0
-//         });
-//         await newOrder.save();
-
-//         const newRequest = new serviceRequestsModel({
-//           requestId: newOrder.requestId,
-//             phoneNumber: newOrder.phoneNumber,
-//             alternatePhoneNumber: newOrder.alternatePhoneNumber,
-//             email: newOrder.email,
-//             userName: newOrder.userName,
-//             image: "https://storage.googleapis.com/meetinground-464c9.appspot.com/images%2F1721279195184_computer-repair.jpg",
-//             issue: cart.issue,
-//             issueDetails: cart.issueDetails ? cart.issueDetails : null,
-//             address: newOrder.address,
-//             status: "Pending",
-//             transactionId: newOrder.transactionId,
-//             amount: newOrder.amount,
-//           GST:  newOrder.GST,
-//             type: "Repair",            
-//           totalAmountPaid: amount || 0
-//         });
-//         await newRequest.save();
-
-//         const notification = new notificationModel({
-//           title: "Repair Order Received!!",
-//           subtitle: `${newOrder.userName} | ${newOrder.phoneNumber}`,
-//           orderDetails: {
-//             phoneNumber: newOrder.phoneNumber,
-//             alternatePhoneNumber: newOrder.alternatePhoneNumber,
-//             userName: newOrder.userName,
-//             requestId: newOrder.requestId,
-//             email: newOrder.email,
-//             typeOfOrder: newOrder.type
-//           }
-//         });
-//         await notification.save();
-//         // notifications.push(notification);
-
-//         var repairRequestId = newOrder.requestId;
-//         var repairPhoneNumber = newOrder.phoneNumber;
-//         var repairTransactionId = newOrder.transactionId;
-//         var repairInitialAmountPaidThrough = newOrder.initialAmountPaidThrough;
-//         var repairAmount = newOrder.amount;
-
-//       } else if (cart.type === "Rental") {
-//         const validLaptop = await rentLaptopModel.findOne({
-//           _id: cart.laptopId,
-//         });
-//         if (!validLaptop) {
-//           return res.status(404).send({ error: "Rental product not found!" });
-//         }
-//         const randomId = getRandomGenerationId();
-//         const newQuotation = new quotationModel({
-//           phoneNumber,
-//           alternatePhoneNumber,
-//           email,
-//           userName,
-//           address,         
-//           notes: null,
-//           type: "Rental",
-//       requestId:`${randomId}REN`,
-//       initialAmountPaidThrough: "COD",
-//           status: "Pending",
-//           laptopId: validLaptop._id
-//         });
-//         await newQuotation.save();
-
-//         const newRequest = new rentalRequestsModel({
-//           requestId: newQuotation.requestId,
-//           laptopId: validLaptop._id,
-//           amountFor6Months: validLaptop.amountFor6Months,
-//           brand: validLaptop.brand,
-//           model: validLaptop.model,
-//           image: validLaptop.image,
-//           description: validLaptop.description,
-//           phoneNumber: newQuotation.phoneNumber,
-//           alternatePhoneNumber: newQuotation.alternatePhoneNumber,
-//           userName: newQuotation.userName,
-//           email: newQuotation.email,
-//           rentalPeriod: cart.note || null,
-//           purposeOfRental: cart.purposeOfRental || null,
-//           address: address || newQuotation.address,
-//           quantity: cart.quantity,
-//           status: "Pending",
-//           type: "Rental",                                 
-//           totalAmountPaid: 0
-//         });
-//         await newRequest.save();
-
-//           const validTemplate = await emailTemplateModel.findOne({templateName: "Quotation Confirmation Email"});
-//           if(validTemplate){
-//             const gmailUserName = await settingsModel.findOne({credentialsKey: "GMAIL_USER" });
-//             const gmailPassword = await settingsModel.findOne({credentialsKey: "GMAIL_PASSWORD" });
-      
-//             const transporter = nodemailer.createTransport({
-//               service: "Gmail",
-//               auth: {
-//                 user: gmailUserName.credentialsValue,
-//                 pass: gmailPassword.credentialsValue
-//               }
-//             });
-
-//             const socialMediaLinks = await settingsModel.find({credentialsKey: {$in: ["facebook", "whatsapp", "twitter", "instagram", "linkedin"]}});
-
-//             const socialMediaMap = socialMediaLinks.reduce((acc, item) => {
-//               acc[item.credentialsKey] = item.credentialsValue;
-//               return acc;
-//             }, {});
-        
-//             const message = {
-//             from: gmailUserName.credentialsValue,
-//             to: email,
-//             subject: validTemplate.subject,
-//             text: `
-// ${validTemplate.body}
-
-// Follow Us On:
-// Facebook:  ${socialMediaMap.facebook || "N/A"}
-// Twitter:   ${socialMediaMap.twitter || "N/A"}
-// Whatsapp:  ${socialMediaMap.whatsapp || "N/A"}
-// Instagram: ${socialMediaMap.instagram || "N/A"}
-// LinkedIn:  ${socialMediaMap.linkedin || "N/A"}
-// `
-//             };
-      
-//             transporter.sendMail(message);
-      
-//             const newEmail = new emailModel({
-//               phoneNumber,
-//               email,
-//               templateName: validTemplate.templateName,
-//               type: "individual"
-//             });
-//             await newEmail.save();
-//           } else {
-//             const notification = new notificationModel({
-//               title: `"Quotation Confirmation Email" Template not Exist!!`,
-//               subtitle: `"Quotation Confirmation Email" was not exist in the Database. Please add this as soon as possible to send "Quotation Confirmation Email" to the Users.`
-//             });
-//             await notification.save();
-//           }
-//       } else if (cart.type === "Refurbished") {
-//         const validLaptop = await refurbishedLaptopModel.findOne({
-//           _id: cart.laptopId,
-//         });
-//         if (!validLaptop) {
-//           return res.status(404).send({ error: "Refurbished product not found!" });
-//         }
-//         const randomId = getRandomGenerationId();
-//         const newOrder = new orderModel({
-//           phoneNumber,
-//           alternatePhoneNumber,
-//           email,
-//           userName,
-//           address,         
-//           notes: null,
-//           type: "Refurbished",
-//       requestId:`${randomId}REF`,
-//       initialAmountPaidThrough: "COD",
-//           status: "Pending",
-//           assignedTo: null,
-//           assignedOn: null,
-//           technicianComments: null,
-//           closedOn: null,
-//           paidThrough: null,
-//           finalTransactionId: null,
-//           totalAmount: null,
-//           billGenerated: "no",
-//           totalAmountPaid: 0
-//         });
-//         await newOrder.save();
-
-//         const newRequest = new refurbishedRequestsModel({
-//           requestId: newOrder.requestId,
-//             laptopId: cart.laptopId,
-//             brand: validLaptop.brand,
-//             image: validLaptop.image,
-//             model: validLaptop.model,
-//             amount: validLaptop.amount,
-//             phoneNumber: newOrder.phoneNumber,
-//             alternatePhoneNumber: newOrder.alternatePhoneNumber,
-//             userName: newOrder.userName,
-//             email: newOrder.email,
-//             address: address || newOrder.address,
-//             quantity: cart.quantity,
-//             status: "Pending",
-//             type: "Refurbished",                       
-//           totalAmountPaid: 0
-//         });
-//         await newRequest.save();
-
-//         const notification = new notificationModel({
-//           title: "Refurbished Order Received!!",
-//           subtitle: `${newOrder.userName} | ${newOrder.phoneNumber}`,
-//           orderDetails: {
-//             phoneNumber: newOrder.phoneNumber,
-//             alternatePhoneNumber: newOrder.alternatePhoneNumber,
-//             userName: newOrder.userName,
-//             requestId: newOrder.requestId,
-//             email: newOrder.email,
-//             typeOfOrder: newOrder.type,
-//             quantity: newRequest.quantity
-//           }
-//         });
-//         await notification.save();
-//       } 
-//     }
-
-//     if(coupon){
-//       var validCoupon = await couponCodeModel.findOne({
-//         code: coupon,
-//         status: "Active",
-//       });
-      
-//       if (!validCoupon) {
-//         return res.status(400).send({ error: "Invalid Coupon Code!" });
-//       } else {
-//         const expiredCoupon =
-//           validCoupon.redemeedUsers.length >= validCoupon.limit;
-//         if (expiredCoupon) {
-//           return res.status(400).send({ error: "Expired Coupon Code!" });
-//         }
-  
-//         const usedCoupon = await couponCodeModel.findOne({
-//           code: coupon,
-//           "redemeedUsers.phoneNumber": phoneNumber,
-//         });
-//         if (usedCoupon) {
-//           return res
-//             .status(400)
-//             .send({ error: "You've already used this Coupon!" });
-//         }
-//         await couponCodeModel.findOneAndUpdate(
-//           { _id: validCoupon._id },
-//           { $addToSet: { redemeedUsers: { phoneNumber } } },
-//           { new: true }
-//         );
-//       }
-//       console.log({"coupon:": validCoupon});
-//     } 
-    
-
-//     const updateFields = {};
-//     if (!existUser.userName) updateFields.userName = userName;
-//     if (!existUser.email) updateFields.email = email;
-
-//     if (address) {
-//       const bookingAddressObj = { address: address, primaryAddress: true };
-//       if (!existUser.address) {
-//         updateFields.address = [address];
-//       } else if (
-//         !existUser.address.some(
-//           (addre) => addre.address === bookingAddressObj.address
-//         )
-//       ) {
-//         updateFields.address = [
-//           ...existUser.address,
-//           bookingAddressObj,
-//         ];
-//       }
-
-//       const check = existUser.address.find(addre => addre.primaryAddress === true);
-//       if(check){
-//         check.primaryAddress = false;
-//         check.save();
-//       }
-//     }
-
-//     if (Object.keys(updateFields).length > 0) {
-//       await usersModel.findOneAndUpdate(
-//         { phoneNumber },
-//         { $set: updateFields },
-//         { new: true }
-//       );
-//     }
-
-//     if(transactionId && amount){
-//       const newTransaction = await transactionModel({
-//         phoneNumber:repairPhoneNumber,
-//         transactionId:repairTransactionId,
-//         amount:repairAmount,
-//         modeOfPayment:repairInitialAmountPaidThrough,
-//         couponCode: validCoupon?.code || null,
-//         couponValue: validCoupon?.value || null,
-//         requestId: repairRequestId,
-//         status: "Pending",
-//         type: "Repair"
-//       });
-      
-//       await newTransaction.save();
-//     }
-//       const validTemplate = await emailTemplateModel.findOne({templateName: "Order Confirmation Email"});
-//       if(validTemplate){
-//         const gmailUserName = await settingsModel.findOne({credentialsKey: "GMAIL_USER" });
-//         const gmailPassword = await settingsModel.findOne({credentialsKey: "GMAIL_PASSWORD" });
-  
-//         const transporter = nodemailer.createTransport({
-//           service: "Gmail",
-//           auth: {
-//             user: gmailUserName.credentialsValue,
-//             pass: gmailPassword.credentialsValue
-//           }
-//         });
-
-//         const socialMediaLinks = await settingsModel.find({credentialsKey: {$in: ["linkedin", "whatsapp", "facebook", "twitter", "instagram"]}});
-
-//         const socialMediaMap = socialMediaLinks.reduce((acc, item) => {
-//           acc[item.credentialsKey] = item.credentialsValue;
-//           return acc;
-//         }, {});
-    
-//         const message = {
-//         from: gmailUserName.credentialsValue,
-//         to: email,
-//         subject: validTemplate.subject,
-//         text: `
-// ${validTemplate.body}
-
-// Follow Us On:
-// Facebook:  ${socialMediaMap.facebook || "N/A"}
-// Twitter:   ${socialMediaMap.twitter || "N/A"}
-// Whatsapp:  ${socialMediaMap.whatsapp || "N/A"}
-// Instagram: ${socialMediaMap.instagram || "N/A"}
-// LinkedIn:  ${socialMediaMap.linkedin || "N/A"}
-//         `
-//         };
-  
-//         transporter.sendMail(message);
-  
-//         const newEmail = new emailModel({
-//           phoneNumber,
-//           email,
-//           templateName: validTemplate.templateName,
-//               type: "individual"
-//         });
-//         await newEmail.save();
-//       } else {
-//         const notification = new notificationModel({
-//           title: `"Order Confirmation Email" Template not Exist!!`,
-//           subtitle: `"Order Confirmation Email" was not exist in the Database. Please add this as soon as possible to send "Order Confirmation Email" to the Users.`
-//         });
-//         await notification.save();
-//       }
-
-//     await cartModel.findOneAndUpdate({_id: cartId}, {$set: {status: "Completed"}}, {new: true});
-//     return res.status(200).send({
-//       message: "Your request was received successfully! Our team will contact you shortly."
-//     });
-//   } catch (error) {
-//     console.error("Error:", error.message);
-//     res.status(500).send({ error: error.message, coupon});
-//   }
-// });
-
-router.post("/addQuote/:cartId", async (req, res) => {
+router.post("/addQuote1/:cartId", async (req, res) => {
   let {
     phoneNumber,
     alternatePhoneNumber,
@@ -1981,6 +1524,482 @@ LinkedIn:  ${socialMediaMap.linkedin || "N/A"}
     if (!existUser.email) updateFields.email = email;
 
     if (address) {
+      const bookingAddressObj = { address: address, primaryAddress: true };
+      if (!existUser.address) {
+        updateFields.address = [address];
+      } else if (
+        !existUser.address.some(
+          (addre) => addre.address === bookingAddressObj.address
+        )
+      ) {
+        updateFields.address = [
+          ...existUser.address,
+          bookingAddressObj,
+        ];
+      }
+
+      const check = existUser.address.find(addre => addre.primaryAddress === true);
+      if(check){
+        check.primaryAddress = false;
+        // check.save();
+      }
+    }
+
+    // if (Object.keys(updateFields).length > 0) {
+    //   await usersModel.findOneAndUpdate(
+    //     { phoneNumber },
+    //     { $set: updateFields },
+    //     { new: true }
+    //   );
+    // }
+
+    if (Object.keys(updateFields).length > 0) {
+      existUser.set(updateFields);
+      await existUser.save();
+    }
+
+    if(transactionId && amount){
+      const newTransaction = await transactionModel({
+        phoneNumber:repairPhoneNumber,
+        transactionId:repairTransactionId,
+        amount:repairAmount,
+        modeOfPayment:repairInitialAmountPaidThrough,
+        couponCode: validCoupon?.code || null,
+        couponValue: validCoupon?.value || null,
+        requestId: repairRequestId,
+        status: "Pending",
+        type: "Repair"
+      });
+      
+      await newTransaction.save();
+    }
+      const validTemplate = await emailTemplateModel.findOne({templateName: "Order Confirmation Email"});
+      if(validTemplate){
+        const gmailUserName = await settingsModel.findOne({credentialsKey: "GMAIL_USER" });
+        const gmailPassword = await settingsModel.findOne({credentialsKey: "GMAIL_PASSWORD" });
+  
+        const transporter = nodemailer.createTransport({
+          service: "Gmail",
+          auth: {
+            user: gmailUserName.credentialsValue,
+            pass: gmailPassword.credentialsValue
+          }
+        });
+
+        const socialMediaLinks = await settingsModel.find({credentialsKey: {$in: ["linkedin", "whatsapp", "facebook", "twitter", "instagram"]}});
+
+        const socialMediaMap = socialMediaLinks.reduce((acc, item) => {
+          acc[item.credentialsKey] = item.credentialsValue;
+          return acc;
+        }, {});
+    
+        const message = {
+        from: gmailUserName.credentialsValue,
+        to: email,
+        subject: validTemplate.subject,
+        text: `
+${validTemplate.body}
+
+Follow Us On:
+Facebook:  ${socialMediaMap.facebook || "N/A"}
+Twitter:   ${socialMediaMap.twitter || "N/A"}
+Whatsapp:  ${socialMediaMap.whatsapp || "N/A"}
+Instagram: ${socialMediaMap.instagram || "N/A"}
+LinkedIn:  ${socialMediaMap.linkedin || "N/A"}
+        `
+        };
+  
+        transporter.sendMail(message);
+  
+        const newEmail = new emailModel({
+          phoneNumber,
+          email,
+          templateName: validTemplate.templateName,
+              type: "individual"
+        });
+        await newEmail.save();
+      } else {
+        const notification = new notificationModel({
+          title: `"Order Confirmation Email" Template not Exist!!`,
+          subtitle: `"Order Confirmation Email" was not exist in the Database. Please add this as soon as possible to send "Order Confirmation Email" to the Users.`
+        });
+        await notification.save();
+      }
+
+    await cartModel.findOneAndUpdate({_id: cartId}, {$set: {status: "Completed"}}, {new: true});
+    return res.status(200).send({
+      message: "Your request was received successfully! Our team will contact you shortly."
+    });
+  } catch (error) {
+    console.error("Error:", error.message);
+    res.status(500).send({ error: error.message, coupon});
+  }
+});
+
+router.post("/addQuote/:cartId", async (req, res) => {
+  let {
+    phoneNumber,
+    alternatePhoneNumber,
+    email,
+    userName,
+    address,
+    transactionId,
+    amount,
+    GST,
+    coupon,
+    initialAmountPaidThrough
+  } = req.body;
+  const { cartId } = req.params;
+  
+  try {
+    if (!phoneNumber || !address || !userName || !email || !cartId ) {
+      return res.status(400).send({ error: "Please fill all fields!" });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if(email){
+      if(!emailRegex.test(email)){
+        return res.status(400).send({error: "Invalid Email!"});
+      }
+    }
+
+    if (!phoneNumber.startsWith("+91")) {
+      phoneNumber = `+91${phoneNumber}`;
+    }
+
+    if(alternatePhoneNumber){
+      if(!alternatePhoneNumber.startsWith("+91")){
+        alternatePhoneNumber = `+91${alternatePhoneNumber}`
+      }
+    };
+
+    const existUser = await usersModel.findOne({ phoneNumber });
+    if (!existUser) {
+      return res.status(404).send({ error: "User not logged in! Please login to continue further" });
+    }
+
+    const validCart = await cartModel.findOne({ _id: cartId, status: "Pending" });
+    if (!validCart) {
+      return res.status(400).send({ error: "Cart not found!" });
+    };
+
+    if(coupon){
+      var validCoupon = await couponCodeModel.findOne({
+        code: coupon,
+        status: "Active",
+      });
+      
+      if (!validCoupon) {
+        return res.status(400).send({ error: "Invalid Coupon Code!" });
+      } else {
+        const expiredCoupon =
+          validCoupon.redemeedUsers.length >= validCoupon.limit;
+        if (expiredCoupon) {
+          return res.status(400).send({ error: "Expired Coupon Code!" });
+        }
+  
+        const usedCoupon = await couponCodeModel.findOne({
+          code: coupon,
+          "redemeedUsers.phoneNumber": phoneNumber,
+        });
+        if (usedCoupon) {
+          return res
+            .status(400)
+            .send({ error: "You've already used this Coupon!" });
+        }
+      }
+      console.log({"coupon:": validCoupon});
+    } 
+    
+    const products = validCart.products;
+    
+    let initialAmount = amount || null;
+    let initialGST = GST || null;
+    if(initialAmountPaidThrough === "COD"){
+      initialAmount = null,
+      initialGST = null
+    }
+
+    for (const cart of products) {
+      if (cart.type === "Repair") {
+        const randomId = getRandomGenerationId();
+        const newOrder = new orderModel({
+          phoneNumber,
+          alternatePhoneNumber,
+          email,
+          userName,
+          address,
+          transactionId: transactionId || null,
+          amount: initialAmount,
+          GST: initialGST,
+          coupon: coupon || null,
+          notes: null,
+          type: "Repair",
+      requestId:`${randomId}REP`,
+      initialAmountPaidThrough: initialAmountPaidThrough || null,
+          status: "Pending",
+          assignedTo: null,
+          assignedOn: null,
+          technicianComments: null,
+          closedOn: null,
+          paidThrough: null,
+          finalTransactionId: null,
+          totalAmount: null,
+          billGenerated: "no",
+          totalAmountPaid: amount || 0
+        });
+        await newOrder.save();
+
+        const newRequest = new serviceRequestsModel({
+          requestId: newOrder.requestId,
+            phoneNumber: newOrder.phoneNumber,
+            alternatePhoneNumber: newOrder.alternatePhoneNumber,
+            email: newOrder.email,
+            userName: newOrder.userName,
+            image: "https://storage.googleapis.com/meetinground-464c9.appspot.com/images%2F1721279195184_computer-repair.jpg",
+            issue: cart.issue,
+            issueDetails: cart.issueDetails ? cart.issueDetails : null,
+            address: newOrder.address,
+            status: "Pending",
+            transactionId: newOrder.transactionId,
+            amount: newOrder.amount,
+            initialAmountPaidThrough: newOrder.initialAmountPaidThrough,
+          GST:  newOrder.GST,
+            type: "Repair",            
+          totalAmountPaid: amount || 0
+        });
+        await newRequest.save();
+
+        const notification = new notificationModel({
+          title: "Repair Order Received!!",
+          subtitle: `${newOrder.userName} | ${newOrder.phoneNumber}`,
+          orderDetails: {
+            phoneNumber: newOrder.phoneNumber,
+            alternatePhoneNumber: newOrder.alternatePhoneNumber,
+            userName: newOrder.userName,
+            requestId: newOrder.requestId,
+            email: newOrder.email,
+            typeOfOrder: newOrder.type
+          }
+        });
+        await notification.save();
+        // notifications.push(notification);
+
+        var repairRequestId = newOrder.requestId;
+        var repairPhoneNumber = newOrder.phoneNumber;
+        var repairTransactionId = newOrder.transactionId;
+        var repairInitialAmountPaidThrough = newOrder.initialAmountPaidThrough;
+        var repairAmount = newOrder.amount;
+
+      } else if (cart.type === "Rental") {
+        const validLaptop = await rentLaptopModel.findOne({
+          _id: cart.laptopId,
+        });
+        if (!validLaptop) {
+          return res.status(404).send({ error: "Rental product not found!" });
+        }
+        const randomId = getRandomGenerationId();
+        const newQuotation = new quotationModel({
+          phoneNumber,
+          alternatePhoneNumber,
+          email,
+          userName,
+          address,         
+          notes: null,
+          type: "Rental",
+      requestId:`${randomId}REN`,
+      initialAmountPaidThrough: "COD",
+          status: "Pending",
+          laptopId: validLaptop._id,
+          quantity: cart.quantity
+        });
+        await newQuotation.save();
+
+        const newRequest = new rentalRequestsModel({
+          requestId: newQuotation.requestId,
+          laptopId: validLaptop._id,
+          amountFor6Months: validLaptop.amountFor6Months,
+          brand: validLaptop.brand,
+          model: validLaptop.model,
+          image: validLaptop.image,
+          description: validLaptop.description,
+          phoneNumber: newQuotation.phoneNumber,
+          alternatePhoneNumber: newQuotation.alternatePhoneNumber,
+          userName: newQuotation.userName,
+          email: newQuotation.email,
+          rentalPeriod: cart.note || null,
+          purposeOfRental: cart.purposeOfRental || null,
+          address: address || newQuotation.address,
+          quantity: cart.quantity,
+          status: "Pending",
+          type: "Rental",    
+          quotationConfirmation: "Pending",                             
+          totalAmountPaid: 0,
+          initialAmountPaidThrough: "COD"
+        });
+        await newRequest.save();
+        
+          const validTemplate = await emailTemplateModel.findOne({templateName: "Quotation Confirmation Email"});
+          if(validTemplate){
+            const gmailUserName = await settingsModel.findOne({credentialsKey: "GMAIL_USER" });
+            const gmailPassword = await settingsModel.findOne({credentialsKey: "GMAIL_PASSWORD" });
+      
+            const transporter = nodemailer.createTransport({
+              service: "Gmail",
+              auth: {
+                user: gmailUserName.credentialsValue,
+                pass: gmailPassword.credentialsValue
+              }
+            });
+
+            const socialMediaLinks = await settingsModel.find({credentialsKey: {$in: ["facebook", "whatsapp", "twitter", "instagram", "linkedin"]}});
+
+            const socialMediaMap = socialMediaLinks.reduce((acc, item) => {
+              acc[item.credentialsKey] = item.credentialsValue;
+              return acc;
+            }, {});
+        
+            const message = {
+            from: gmailUserName.credentialsValue,
+            to: email,
+            subject: validTemplate.subject,
+            text: `
+${validTemplate.body}
+
+Follow Us On:
+Facebook:  ${socialMediaMap.facebook || "N/A"}
+Twitter:   ${socialMediaMap.twitter || "N/A"}
+Whatsapp:  ${socialMediaMap.whatsapp || "N/A"}
+Instagram: ${socialMediaMap.instagram || "N/A"}
+LinkedIn:  ${socialMediaMap.linkedin || "N/A"}
+`
+            };
+      
+            transporter.sendMail(message);
+      
+            const newEmail = new emailModel({
+              phoneNumber,
+              email,
+              templateName: validTemplate.templateName,
+              type: "individual"
+            });
+            await newEmail.save();
+          } else {
+            const notification = new notificationModel({
+              title: `"Quotation Confirmation Email" Template not Exist!!`,
+              subtitle: `"Quotation Confirmation Email" was not exist in the Database. Please add this as soon as possible to send "Quotation Confirmation Email" to the Users.`
+            });
+            await notification.save();
+          }
+      } else if (cart.type === "Refurbished") {
+        const validLaptop = await refurbishedLaptopModel.findOne({
+          _id: cart.laptopId,
+        });
+        if (!validLaptop) {
+          return res.status(404).send({ error: "Refurbished product not found!" });
+        }
+        const randomId = getRandomGenerationId();
+        const newOrder = new orderModel({
+          phoneNumber,
+          alternatePhoneNumber,
+          email,
+          userName,
+          address,         
+          notes: null,
+          type: "Refurbished",
+      requestId:`${randomId}REF`,
+      initialAmountPaidThrough: "COD",
+      status: "Pending",
+      assignedTo: null,
+      assignedOn: null,
+      technicianComments: null,
+      closedOn: null,
+      paidThrough: null,
+      finalTransactionId: null,
+      totalAmount: null,
+      billGenerated: "no",
+      totalAmountPaid: 0
+    });
+    await newOrder.save();
+    
+    const newRequest = new refurbishedRequestsModel({
+      requestId: newOrder.requestId,
+      laptopId: cart.laptopId,
+      brand: validLaptop.brand,
+      image: validLaptop.image,
+      model: validLaptop.model,
+      amount: validLaptop.amount,
+      description: validLaptop.description,
+      phoneNumber: newOrder.phoneNumber,
+      alternatePhoneNumber: newOrder.alternatePhoneNumber,
+      userName: newOrder.userName,
+      email: newOrder.email,
+      address: address || newOrder.address,
+      quantity: cart.quantity,
+      status: "Pending",
+      type: "Refurbished",                       
+      totalAmountPaid: 0,
+      initialAmountPaidThrough: "COD",
+        });
+        await newRequest.save();
+
+        const notification = new notificationModel({
+          title: "Refurbished Order Received!!",
+          subtitle: `${newOrder.userName} | ${newOrder.phoneNumber}`,
+          orderDetails: {
+            phoneNumber: newOrder.phoneNumber,
+            alternatePhoneNumber: newOrder.alternatePhoneNumber,
+            userName: newOrder.userName,
+            requestId: newOrder.requestId,
+            email: newOrder.email,
+            typeOfOrder: newOrder.type,
+            quantity: newRequest.quantity
+          }
+        });
+        await notification.save();
+      } 
+    }
+
+    if(coupon){
+      var validCoupon = await couponCodeModel.findOne({
+        code: coupon,
+        status: "Active",
+      });
+      
+      if (!validCoupon) {
+        return res.status(400).send({ error: "Invalid Coupon Code!" });
+      } else {
+        const expiredCoupon =
+          validCoupon.redemeedUsers.length >= validCoupon.limit;
+        if (expiredCoupon) {
+          return res.status(400).send({ error: "Expired Coupon Code!" });
+        }
+  
+        const usedCoupon = await couponCodeModel.findOne({
+          code: coupon,
+          "redemeedUsers.phoneNumber": phoneNumber,
+        });
+        if (usedCoupon) {
+          return res
+            .status(400)
+            .send({ error: "You've already used this Coupon!" });
+        }
+        await couponCodeModel.findOneAndUpdate(
+          { _id: validCoupon._id },
+          { $addToSet: { redemeedUsers: { phoneNumber } } },
+          { new: true }
+        );
+      }
+      console.log({"coupon:": validCoupon});
+    } 
+    
+
+    const updateFields = {};
+    if (!existUser.userName) updateFields.userName = userName;
+    if (!existUser.email) updateFields.email = email;
+
+    if (address) {
+     address = address.split(" - ")[0];
       const bookingAddressObj = { address: address, primaryAddress: true };
       if (!existUser.address) {
         updateFields.address = [address];

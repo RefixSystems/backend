@@ -760,7 +760,14 @@ router.patch("/updateUserAddress/:phoneNumber", async(req, res) => {
         check.primaryAddress = false;
         await check.save();
       }
+    } 
+
+    if(primaryAddress === false){
+      const checking = validUser.address.find(addre => addre.id === addressId && addre.primaryAddress === true);
+      if(checking){
+      return res.status(400).send({error:"Please change another address as Default, before turn off this!"});
     }
+    } 
 
     if(address){
       validAddress.address = address;
@@ -1186,12 +1193,17 @@ router.post("/support", async(req, res) => {
     const month = now.split("/")[1];
     
     const prevSupportId = await supportFormModel.findOne().sort({createdAt: -1}).limit(1);
-    const idOfSupport = prevSupportId.supportId.substring(7);
+    let supportId;
+    if(prevSupportId){
+      supportId = prevSupportId.supportId;
+    } else {
+      supportId = "SUP" + year + month + "00";
+    }
+   
+    const idOfSupport = parseInt(supportId.substring(7), 10) + 1;
+    const previousSupportIdFormatted = idOfSupport.toString().padStart(2, "0");
     
-    const previousSupportId = parseFloat(idOfSupport, 10) + 1;
-    const previousSupportIdFormatted = previousSupportId.toString().padStart(2, "0");
-    
-    const newSupportId = `SUP${year}${month}${previousSupportIdFormatted}`
+    const newSupportId = `SUP${year}${month}${previousSupportIdFormatted}`;
 
     const newSupport = await supportFormModel({
       supportId: newSupportId, phoneNumber, userName, email, message, adminComments: null, doneBy: null, status: "Pending", type: "Contact US"
